@@ -211,6 +211,13 @@ type Section struct {
 	// Empty is what the section says while it holds nothing, such as "No
 	// public playlists". Without it, an empty section shows only its title.
 	Empty string `json:"empty,omitempty"`
+	// PageTitle heads the page of the section's songs that its feature card
+	// opens, such as "Daily Song Picks" for a card titled "Daily Picks".
+	// Without it, the page takes Title.
+	PageTitle string `json:"pageTitle,omitempty"`
+	// Subtitle follows the count of songs on that page, such as "Picked for
+	// your taste, new every day at 6:00".
+	Subtitle string `json:"subtitle,omitempty"`
 }
 
 // Link opens another Browse page.

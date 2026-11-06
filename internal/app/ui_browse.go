@@ -282,7 +282,9 @@ func (a *app) sectionOf(r route) *music.Section {
 	return &page.Sections[at]
 }
 
-// sectionPage lists the tracks of a section the feature card shows only a few of.
+// sectionPage lists the tracks of a section the feature card shows only a few
+// of. It's headed as the card is: the day over the first cover's colors, and
+// the day's date over the title.
 func (a *app) sectionPage(c *ui.Context) {
 	sec := a.sectionOf(a.route)
 	if sec == nil {
@@ -290,16 +292,22 @@ func (a *app) sectionPage(c *ui.Context) {
 		return
 	}
 	p := a.pal
+	now := c.Now()
+	title := sec.PageTitle
+	if title == "" {
+		title = sec.Title
+	}
+	about := i18n.Songs(len(sec.Tracks))
+	if sec.Subtitle != "" {
+		about += " · " + sec.Subtitle
+	}
 	a.trackRows(c, sec.Tracks, true, func(c *ui.Context) {
 		ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 26, 0).Children(func() {
-			ui.Box(c).Size(212, 212).Radius(14).Shadow(0, 18, 40, -10, p.cardShade).Children(func() {
-				if len(sec.Tracks) > 0 {
-					a.coverFill(c, sec.Tracks[0].Album.ImageURL, 600, 14)
-				}
-			})
+			a.dayCover(c, sec.Tracks, now)
 			ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(8).Children(func() {
-				ui.Text(c, sec.Title).FontSize(30).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
-				ui.Text(c, i18n.Songs(len(sec.Tracks))).FontSize(13).TextColor(p.muted)
+				ui.Text(c, i18n.Today(now)).FontSize(12).FontWeight(600).LetterSpacing(0.3).TextColor(p.muted).MaxLines(1)
+				ui.Text(c, title).FontSize(30).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
+				ui.Text(c, about).FontSize(13).TextColor(p.muted).MaxLines(2)
 				ui.Row(c).Gap(10).Margin(8, 0, 0, 0).Children(func() { a.playButtons(c, sec.Tracks) })
 			})
 		})
