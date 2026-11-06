@@ -1377,7 +1377,7 @@ func TestScanM4AAndWAV(t *testing.T) {
 	}
 
 	for _, tt := range []struct {
-		tr            music.Track
+		tr           music.Track
 		typ, quality string
 	}{
 		{alac, "m4a", "lossless"},
