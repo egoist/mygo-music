@@ -154,26 +154,30 @@ const artRelease = 2 * time.Second
 // loadArt fetches the cover a key of sized names, as a bitmap to draw and an
 // image to measure, with the bytes of its data. One much bigger than it shows
 // is kept smaller: a file's embedded cover can be thousands of pixels across.
+// Its bitmap is made only of the smaller copy, never of the cover as it came.
 func loadArt(key string) (*ui.Bitmap, image.Image, int, error) {
 	url, px := splitSized(key)
 	b, err := music.Fetch(url)
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	bmp, img, err := decodeArt(b)
+	b = stillCover(b)
+	img, err := decodeImage(b)
 	if err != nil {
 		return nil, nil, 0, err
 	}
 	if size := img.Bounds().Size(); px > 0 && max(size.X, size.Y) > px*3/2 {
-		small, data, err := shrinkArt(img, px)
-		if err != nil {
-			return bmp, img, len(b), nil
+		if small, data, err := shrinkArt(img, px); err == nil {
+			bmp, err := ui.DecodeBitmap(data)
+			if err != nil {
+				return nil, nil, 0, err
+			}
+			return bmp, small, len(data), nil
 		}
-		bmp, err = ui.DecodeBitmap(data)
-		if err != nil {
-			return nil, nil, 0, err
-		}
-		return bmp, small, len(data), nil
+	}
+	bmp, err := ui.DecodeBitmap(b)
+	if err != nil {
+		return nil, nil, 0, err
 	}
 	return bmp, img, len(b), nil
 }
@@ -206,18 +210,6 @@ func shrinkArt(img image.Image, px int) (image.Image, []byte, error) {
 		return nil, nil, err
 	}
 	return small, buf.Bytes(), nil
-}
-
-// decodeArt decodes a cover twice: as a bitmap, which keeps the data to
-// decode its pixels again after it drops them, and as an image.
-func decodeArt(b []byte) (*ui.Bitmap, image.Image, error) {
-	b = stillCover(b)
-	img, _, err := image.Decode(bytes.NewReader(b))
-	if err != nil {
-		return nil, nil, err
-	}
-	bmp, err := ui.DecodeBitmap(b)
-	return bmp, img, err
 }
 
 func fetchImage(url string) (image.Image, error) {

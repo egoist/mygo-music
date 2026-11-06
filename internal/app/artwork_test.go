@@ -1,20 +1,26 @@
 package app
 
 import (
+	"image"
+	"image/color"
+	"image/jpeg"
 	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
+
+	"mygo-music/internal/music"
 )
 
 // An animated WebP cover, as some playlists have, shows its first frame,
 // in the bitmap too, which decodes its data again once it drops its pixels.
 func TestAnimatedWebPCover(t *testing.T) {
-	b, err := os.ReadFile("testdata/animated.webp")
+	path, err := filepath.Abs("testdata/animated.webp")
 	if err != nil {
 		t.Fatal(err)
 	}
-	bmp, img, err := decodeArt(b)
+	bmp, img, _, err := loadArt(music.FileURL(path))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,6 +29,50 @@ func TestAnimatedWebPCover(t *testing.T) {
 	}
 	if w, h := bmp.Size(); w != 24 || h != 24 {
 		t.Errorf("bitmap is %d×%d, want 24×24", w, h)
+	}
+}
+
+// A cover much bigger than it shows makes its bitmap of the smaller copy
+// alone. It made one of the whole cover first, then dropped it: a 96-pixel
+// thumbnail of a 4000-pixel cover took some 120 MB to load.
+func TestBigCoverThumbnailSkipsFullBitmap(t *testing.T) {
+	const n = 2000
+	src := image.NewRGBA(image.Rect(0, 0, n, n))
+	for y := range n {
+		for x := range n {
+			src.SetRGBA(x, y, color.RGBA{uint8(x), uint8(y), uint8(x ^ y), 255})
+		}
+	}
+	path := filepath.Join(t.TempDir(), "cover.jpg")
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := jpeg.Encode(f, src, nil); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	src = nil
+	key := sized(music.FileURL(path), 96)
+
+	runtime.GC()
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	bmp, img, _, err := loadArt(key)
+	runtime.ReadMemStats(&after)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w, h := bmp.Size(); w != 96 || h != 96 {
+		t.Errorf("bitmap is %d×%d, want 96×96", w, h)
+	}
+	if r := img.Bounds(); r.Dx() != 96 || r.Dy() != 96 {
+		t.Errorf("image is %v, want 96×96", r)
+	}
+	// Decoding the JPEG takes some 1.5 bytes a pixel and scaling it some
+	// 1.5 more; a full RGBA bitmap took 4, and decoding it again 1.5.
+	if got, budget := after.TotalAlloc-before.TotalAlloc, uint64(4*n*n); got > budget {
+		t.Errorf("loading a 96-pixel thumbnail of a %d-pixel cover allocated %d bytes, budget %d", n, got, budget)
 	}
 }
 
