@@ -42,7 +42,7 @@ func openWAVStream(dl *download) (*wavStream, error) {
 		s.frames = (dl.size - start) / int64(f.align)
 	}
 	s.r = &downloadReader{d: dl, pos: start}
-	s.spec = newSpectrum(f.rate, max(s.frames, 0))
+	s.spec = newSpectrum(f.rate)
 	return s, nil
 }
 

@@ -194,7 +194,7 @@ func openMP4Stream(dl *download) (*packetStream, error) {
 	s.prime = frames(a.Prime)
 	s.skip = s.prime
 	s.frames, s.exact = s.ends[len(s.ends)-1]-s.prime, true
-	s.spec = newSpectrum(s.rate, s.frames)
+	s.spec = newSpectrum(s.rate)
 	return s, nil
 }
 
@@ -293,6 +293,6 @@ func openADTSStream(dl *download, start, durationMs int64) (*packetStream, error
 	} else if durationMs > 0 {
 		s.frames = durationMs * int64(rate) / 1000
 	}
-	s.spec = newSpectrum(rate, max(s.frames, 0))
+	s.spec = newSpectrum(rate)
 	return s, nil
 }
