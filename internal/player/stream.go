@@ -15,6 +15,7 @@ import (
 	"github.com/egoist/mygo/audio"
 	gomp3 "github.com/hajimehoshi/go-mp3"
 
+	"mygo-music/internal/mp4"
 	"mygo-music/internal/music"
 )
 
@@ -330,16 +331,30 @@ type stream interface {
 	source() (*download, *spectrum)
 }
 
-// openStream opens the song dl fetches, MP3, FLAC or Ogg Vorbis, as its first bytes
-// say. An MP3 says nothing of its length: durationMs is it.
+// openStream opens the song dl fetches, MP3, FLAC, Ogg Vorbis, WAV, AAC, or
+// ALAC or AAC in an MP4, as its first bytes say. An MP3 says nothing of its
+// length, nor does AAC still coming in: durationMs is it.
 func openStream(dl *download, durationMs int64) (stream, error) {
+	dl.waitFor(12)
+	if head := dl.peek(0, 12); len(head) == 12 {
+		switch {
+		case mp4.Is(head):
+			return openMP4Stream(dl)
+		case (string(head[:4]) == "RIFF" || string(head[:4]) == "RF64") && string(head[8:12]) == "WAVE":
+			return openWAVStream(dl)
+		}
+	}
 	off := id3Size(dl)
-	if dl.waitFor(off+4) >= off+4 {
-		switch string(dl.peek(off, 4)) {
+	if dl.waitFor(off+7) >= off+4 {
+		head := dl.peek(off, 7)
+		switch string(head[:4]) {
 		case "fLaC":
 			return openFLACStream(dl)
 		case "OggS":
 			return openOggStream(dl, durationMs)
+		}
+		if _, _, ok := adtsHeader(head); ok {
+			return openADTSStream(dl, off, durationMs)
 		}
 	}
 	return openMP3Stream(dl, durationMs)
@@ -363,6 +378,10 @@ func openShared(dl *download, durationMs int64) (stream, error) {
 	case *flacStream:
 		s.spec, s.drop = nil, dl.release
 	case *oggStream:
+		s.spec, s.drop = nil, dl.release
+	case *wavStream:
+		s.spec, s.drop = nil, dl.release
+	case *packetStream:
 		s.spec, s.drop = nil, dl.release
 	}
 	return s, nil

@@ -528,7 +528,7 @@ func (a *app) radioChip(c *ui.Context, name string) {
 
 // qualityBadge marks a lossless stream, as it plays.
 func qualityBadge(c *ui.Context, st *music.Stream) {
-	if st == nil || st.Quality != "lossless" && st.Type != "flac" {
+	if st == nil || st.Quality != "lossless" && st.Type != "flac" && st.Type != "wav" {
 		return
 	}
 	ui.Text(c, T("Lossless")).FontSize(9.5).FontWeight(800).LetterSpacing(0.6).TextColor(ui.Hex("#f5d58a")).

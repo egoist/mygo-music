@@ -134,9 +134,9 @@ func (a *app) emptyHome(c *ui.Context) {
 			ui.Text(c, T("Looking for music…")).FontSize(22).FontWeight(700).LetterSpacing(-0.3)
 			ui.Text(c, T("Songs will show here as they're found.")).FontSize(13.5).TextColor(p.muted).TextAlign(ui.Center)
 		case lib.id == local.ID:
-			title, sub := T("Add a music folder"), T("Choose where your music lives, and it will all be here: MP3, FLAC and Ogg files, with their tags, covers and lyrics.")
+			title, sub := T("Add a music folder"), T("Choose where your music lives, and it will all be here: MP3, FLAC, Ogg, WAV and M4A files, with their tags, covers and lyrics.")
 			if a.local != nil && len(a.local.Folders()) > 0 {
-				title, sub = T("No music found"), T("There are no MP3 or FLAC files in the folders you chose. Try another.")
+				title, sub = T("No music found"), T("There are no music files in the folders you chose. Try another.")
 			}
 			ui.Text(c, title).FontSize(22).FontWeight(700).LetterSpacing(-0.3)
 			ui.Text(c, sub).FontSize(13.5).TextColor(p.muted).TextAlign(ui.Center).MaxWidth(420).LineHeight(1.45)

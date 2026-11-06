@@ -25,6 +25,8 @@ import (
 
 	"github.com/dhowden/tag"
 	"golang.org/x/text/encoding/simplifiedchinese"
+
+	"mygo-music/internal/mp4"
 )
 
 const (
@@ -242,7 +244,7 @@ func walk(ctx context.Context, folders []string) []found {
 				return nil
 			}
 			switch strings.ToLower(filepath.Ext(name)) {
-			case ".mp3", ".flac", ".ogg":
+			case ".mp3", ".flac", ".ogg", ".wav", ".m4a", ".aac":
 			default:
 				return nil
 			}
@@ -321,7 +323,19 @@ func (s *Source) readFile(file found) (entry, bool) {
 	defer f.Close()
 
 	typ := fileType(f, file.path)
-	t := readTags(f, typ)
+	var track *mp4.Track
+	switch typ {
+	case "m4a":
+		var ok bool
+		if track, ok = m4aTrack(f, file.size); !ok {
+			return entry{}, false // HE-AAC, say, which the player doesn't decode
+		}
+	case "aac":
+		if !adtsPlayable(f) {
+			return entry{}, false
+		}
+	}
+	t := readTags(f, typ, file.size)
 	e := entry{
 		Path: file.path, Size: file.size, Mod: file.mod,
 		Title: t.title, Artist: t.artist, Album: t.album, AlbumArtist: t.albumArtist,
@@ -341,6 +355,12 @@ func (s *Source) readFile(file found) (entry, bool) {
 		e.Duration = flacDuration(f)
 	case "ogg":
 		e.Duration = oggDuration(f, file.size)
+	case "wav":
+		e.Duration = wavDuration(f, file.size)
+	case "m4a":
+		e.Duration = track.Millis()
+	case "aac":
+		e.Duration = adtsDuration(f, file.size)
 	default:
 		e.Duration = mp3Duration(f, file.size)
 	}
@@ -377,21 +397,31 @@ type tags struct {
 // readTags reads a file's tags. The library panics on some malformed files, and
 // answers nothing if it can't make them out: either way, what's found so far
 // stands.
-func readTags(f *os.File, typ string) (t tags) {
+func readTags(f *os.File, typ string, size int64) (t tags) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("local: reading tags of %s: %v", f.Name(), r)
 		}
 	}()
+	var src io.ReadSeeker = f
 	// The library takes a FLAC behind an ID3 tag for an MP3.
 	start := int64(0)
-	if typ == "flac" {
+	switch typ {
+	case "flac":
 		start = id3v2Size(f)
+	case "wav":
+		// It reads no WAV: its tags are an ID3 tag in a chunk, or else
+		// RIFF's own.
+		id3 := wavID3(f, size)
+		if id3 == nil {
+			return wavInfo(f, size)
+		}
+		src = id3
 	}
-	if _, err := f.Seek(start, io.SeekStart); err != nil {
+	if _, err := src.Seek(start, io.SeekStart); err != nil {
 		return t
 	}
-	m, err := tag.ReadFrom(f)
+	m, err := tag.ReadFrom(src)
 	if err != nil {
 		return t
 	}
@@ -563,24 +593,34 @@ func coverExt(pic *tag.Picture) string {
 	return ""
 }
 
-// fileType says whether a file is an mp3, a flac or an ogg: by what it holds if that
-// tells, and else by its name.
+// fileType says whether a file is an mp3, a flac, an ogg, a wav, an m4a or an
+// aac: by what it holds if that tells, and else by its name.
 func fileType(f io.ReaderAt, path string) string {
-	var head [4]byte
-	if _, err := f.ReadAt(head[:], id3v2Size(f)); err == nil && string(head[:]) == "fLaC" {
+	var head [12]byte
+	if _, err := f.ReadAt(head[:], 0); err == nil {
+		if mp4.Is(head[:]) {
+			return "m4a"
+		}
+		if (string(head[:4]) == "RIFF" || string(head[:4]) == "RF64") && string(head[8:12]) == "WAVE" {
+			return "wav"
+		}
+	}
+	clear(head[:])
+	if _, err := f.ReadAt(head[:4], id3v2Size(f)); err == nil && string(head[:4]) == "fLaC" {
 		return "flac"
 	}
-	if string(head[:]) == "OggS" {
+	if string(head[:4]) == "OggS" {
 		return "ogg"
 	}
-	if _, ok := parseFrameHeader(head[:]); ok {
+	if head[0] == 0xff && head[1]&0xf6 == 0xf0 {
+		return "aac" // ADTS: MP3's layer bits are never 0
+	}
+	if _, ok := parseFrameHeader(head[:4]); ok {
 		return "mp3"
 	}
-	switch strings.ToLower(filepath.Ext(path)) {
-	case ".flac":
-		return "flac"
-	case ".ogg":
-		return "ogg"
+	switch ext := strings.ToLower(filepath.Ext(path)); ext {
+	case ".flac", ".ogg", ".wav", ".m4a", ".aac":
+		return ext[1:]
 	}
 	return "mp3"
 }
