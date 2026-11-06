@@ -68,8 +68,9 @@ type Playlist struct {
 	Description string  `json:"description,omitempty"`
 	Owner       string  `json:"owner,omitempty"`
 	TrackCount  int     `json:"trackCount,omitempty"`
-	Mine        bool    `json:"mine,omitempty"`  // the listener may change it
+	Mine        bool    `json:"mine,omitempty"`  // the listener's own
 	Saved       bool    `json:"saved,omitempty"` // saved from someone else
+	Fixed       bool    `json:"fixed,omitempty"` // the listener's, but kept by the source: liked songs, say
 	Tracks      []Track `json:"tracks,omitempty"`
 }
 

@@ -458,6 +458,7 @@ func (a *app) myPlaylists(c *ui.Context, title string, lists []music.Playlist, m
 			ui.Text(c, pl.Name).FontSize(13).SingleLine().Shrink(1).MinWidth(0)
 		})
 		switch {
+		case mine && pl.Fixed:
 		case mine && (a.can("renamePlaylist") || a.can("deletePlaylist")):
 			b.ContextMenu(func(m *ui.Menu) { a.playlistMenu(m, pl) })
 		case !mine && a.can("savePlaylist"):
