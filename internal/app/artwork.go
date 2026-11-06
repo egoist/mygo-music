@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"weak"
 
@@ -42,13 +43,20 @@ type artCache struct {
 	// gone are the covers dropped, for as long as something else holds
 	// them: Now Playing keeps the cover it shows, which comes back as it
 	// was rather than loading again.
-	gone  map[string]weak.Pointer[artwork]
-	busy  map[string]bool
-	sem   chan struct{}
-	post  func(func())
-	now   func() time.Time
-	size  int // the bytes the covers in art keep
-	limit int
+	gone map[string]weak.Pointer[artwork]
+	busy map[string]bool
+	// loads are the covers loading, by their key of sized, and sources the
+	// data they are of, by url: the sizes of a cover asked for at once
+	// fetch it once between them, and a backdrop decodes with the cover
+	// it is of. Each goes once the last that wants it has loaded, so it
+	// keeps no data or pixels past that.
+	loads   map[string]*artLoad
+	sources map[string]*artSource
+	sem     chan struct{}
+	post    func(func())
+	now     func() time.Time
+	size    int // the bytes the covers in art keep
+	limit   int
 }
 
 // artLimit is how many bytes of covers the cache keeps. A cover keeps its
@@ -58,7 +66,7 @@ type artCache struct {
 const artLimit = 64 << 20
 
 func newArtCache(post func(func())) *artCache {
-	return &artCache{art: map[string]*artwork{}, gone: map[string]weak.Pointer[artwork]{}, busy: map[string]bool{}, sem: make(chan struct{}, 8), post: post, now: time.Now, limit: artLimit}
+	return &artCache{art: map[string]*artwork{}, gone: map[string]weak.Pointer[artwork]{}, busy: map[string]bool{}, loads: map[string]*artLoad{}, sources: map[string]*artSource{}, sem: make(chan struct{}, 8), post: post, now: time.Now, limit: artLimit}
 }
 
 // add keeps a cover, and drops those asked for least recently once the
@@ -115,25 +123,23 @@ func (c *artCache) get(url string, backdrop bool) *artwork {
 		return nil
 	}
 	c.busy[key] = true
+	l := c.hold(url)
 	go func() {
-		c.sem <- struct{}{}
-		bmp, img, size, err := loadArt(url)
-		<-c.sem
+		c.load(url, l)
 		var blurred *image.RGBA
-		var tint ui.Color
-		if err == nil {
-			tint = dominantColor(img)
-			if backdrop {
-				blurred = blurImage(img)
-			}
+		if l.err == nil && backdrop {
+			blurred = blurImage(l.img)
 		}
 		c.post(func() {
 			delete(c.busy, key)
-			if err != nil {
+			c.letGo(url, l)
+			if l.err != nil {
 				c.add(key, &artwork{failed: true, used: c.now()})
 				return
 			}
-			a := &artwork{bmp: bmp, tint: tint, used: c.now(), size: size}
+			// A backdrop shares the bitmap of the cover it is of, which
+			// each counts: the cache keeps either without the other.
+			a := &artwork{bmp: l.bmp, tint: l.tint, used: c.now(), size: l.size}
 			if blurred != nil {
 				a.backdrop = ui.NewBitmap(blurred)
 				a.size += len(blurred.Pix)
@@ -141,26 +147,98 @@ func (c *artCache) get(url string, backdrop bool) *artwork {
 			c.add(key, a)
 			// Shown by the frame post draws, the cover drops its pixels,
 			// which its data decodes again if they are needed.
-			time.AfterFunc(artRelease, func() { mygo.RunOnMain(bmp.ReleasePixels) })
+			time.AfterFunc(artRelease, func() { mygo.RunOnMain(l.bmp.ReleasePixels) })
 		})
 	}()
 	return nil
+}
+
+// artLoad is a cover loading at a size, for the cover and its backdrop.
+type artLoad struct {
+	once sync.Once
+	src  *artSource
+	bmp  *ui.Bitmap
+	img  image.Image
+	tint ui.Color
+	size int
+	err  error
+	n    int // those waiting for it, counted on the main thread
+}
+
+// artSource is the data of a cover being fetched, for its sizes loading.
+type artSource struct {
+	once sync.Once
+	data []byte
+	err  error
+	n    int // the loads of it, counted on the main thread
+}
+
+// hold returns the load of the cover a key of sized names, the one
+// loading already if there is one, until letGo.
+func (c *artCache) hold(key string) *artLoad {
+	l := c.loads[key]
+	if l == nil {
+		url, _ := splitSized(key)
+		s := c.sources[url]
+		if s == nil {
+			s = &artSource{}
+			c.sources[url] = s
+		}
+		s.n++
+		l = &artLoad{src: s}
+		c.loads[key] = l
+	}
+	l.n++
+	return l
+}
+
+// letGo lets go of a load that hold returned, and of its data once
+// nothing loading wants either.
+func (c *artCache) letGo(key string, l *artLoad) {
+	if l.n--; l.n > 0 {
+		return
+	}
+	if c.loads[key] == l {
+		delete(c.loads, key)
+	}
+	url, _ := splitSized(key)
+	if l.src.n--; l.src.n == 0 && c.sources[url] == l.src {
+		delete(c.sources, url)
+	}
+}
+
+// load fetches and decodes the cover a key of sized names, on a goroutine,
+// unless another has: those after the first wait for it.
+func (c *artCache) load(key string, l *artLoad) {
+	l.once.Do(func() {
+		url, px := splitSized(key)
+		s := l.src
+		s.once.Do(func() {
+			c.sem <- struct{}{}
+			s.data, s.err = music.Fetch(url)
+			<-c.sem
+		})
+		if l.err = s.err; l.err != nil {
+			return
+		}
+		c.sem <- struct{}{}
+		l.bmp, l.img, l.size, l.err = artOf(s.data, px)
+		<-c.sem
+		if l.err == nil {
+			l.tint = dominantColor(l.img)
+		}
+	})
 }
 
 // artRelease is how long a cover keeps its pixels once loaded: past the
 // frame that first shows it, and the smaller copies it shows from there.
 const artRelease = 2 * time.Second
 
-// loadArt fetches the cover a key of sized names, as a bitmap to draw and an
+// artOf decodes the data of a cover to show at px, as a bitmap to draw and an
 // image to measure, with the bytes of its data. One much bigger than it shows
 // is kept smaller: a file's embedded cover can be thousands of pixels across.
 // Its bitmap is made only of the smaller copy, never of the cover as it came.
-func loadArt(key string) (*ui.Bitmap, image.Image, int, error) {
-	url, px := splitSized(key)
-	b, err := music.Fetch(url)
-	if err != nil {
-		return nil, nil, 0, err
-	}
+func artOf(b []byte, px int) (*ui.Bitmap, image.Image, int, error) {
 	b = stillCover(b)
 	img, err := decodeImage(b)
 	if err != nil {

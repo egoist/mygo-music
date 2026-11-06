@@ -1,26 +1,27 @@
 package app
 
 import (
+	"bytes"
 	"image"
 	"image/color"
 	"image/jpeg"
+	"net/http"
+	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"runtime"
+	"sync/atomic"
 	"testing"
 	"time"
-
-	"mygo-music/internal/music"
 )
 
 // An animated WebP cover, as some playlists have, shows its first frame,
 // in the bitmap too, which decodes its data again once it drops its pixels.
 func TestAnimatedWebPCover(t *testing.T) {
-	path, err := filepath.Abs("testdata/animated.webp")
+	b, err := os.ReadFile("testdata/animated.webp")
 	if err != nil {
 		t.Fatal(err)
 	}
-	bmp, img, _, err := loadArt(music.FileURL(path))
+	bmp, img, _, err := artOf(b, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,22 +44,16 @@ func TestBigCoverThumbnailSkipsFullBitmap(t *testing.T) {
 			src.SetRGBA(x, y, color.RGBA{uint8(x), uint8(y), uint8(x ^ y), 255})
 		}
 	}
-	path := filepath.Join(t.TempDir(), "cover.jpg")
-	f, err := os.Create(path)
-	if err != nil {
+	var data bytes.Buffer
+	if err := jpeg.Encode(&data, src, nil); err != nil {
 		t.Fatal(err)
 	}
-	if err := jpeg.Encode(f, src, nil); err != nil {
-		t.Fatal(err)
-	}
-	f.Close()
 	src = nil
-	key := sized(music.FileURL(path), 96)
 
 	runtime.GC()
 	var before, after runtime.MemStats
 	runtime.ReadMemStats(&before)
-	bmp, img, _, err := loadArt(key)
+	bmp, img, _, err := artOf(data.Bytes(), 96)
 	runtime.ReadMemStats(&after)
 	if err != nil {
 		t.Fatal(err)
@@ -137,4 +132,43 @@ func TestArtCacheKeepsHeldCovers(t *testing.T) {
 		t.Error("loaded again a cover something still held")
 	}
 	runtime.KeepAlive(held)
+}
+
+// The sizes of a cover asked for at once fetch it once between them, and
+// a backdrop shares the decode of the cover it is of, keeping neither past
+// their loads. Now Playing's cover, its backdrop and the player bar's
+// thumbnail each fetched and decoded the same cover.
+func TestArtCacheSharesCoverAcrossSizes(t *testing.T) {
+	var data bytes.Buffer
+	if err := jpeg.Encode(&data, image.NewRGBA(image.Rect(0, 0, 800, 800)), nil); err != nil {
+		t.Fatal(err)
+	}
+	var fetches atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fetches.Add(1)
+		w.Write(data.Bytes())
+	}))
+	defer srv.Close()
+	posts := make(chan func(), 8)
+	c := newArtCache(func(fn func()) { posts <- fn })
+	url := srv.URL + "/cover.jpg"
+	c.get(sized(url, 96), false)
+	c.get(sized(url, 600), false)
+	c.get(sized(url, 600), true)
+	for range 3 {
+		runPost(t, posts)
+	}
+	if n := fetches.Load(); n != 1 {
+		t.Errorf("three sizes of a cover fetched it %d times, want once", n)
+	}
+	cover, backdrop := c.get(sized(url, 600), false), c.get(sized(url, 600), true)
+	if cover == nil || backdrop == nil || backdrop.backdrop == nil {
+		t.Fatal("the cover or its backdrop did not load")
+	}
+	if cover.bmp != backdrop.bmp {
+		t.Error("the backdrop decoded the cover it is of again")
+	}
+	if len(c.loads) > 0 || len(c.sources) > 0 {
+		t.Errorf("kept %d loads and %d sources once loaded", len(c.loads), len(c.sources))
+	}
 }
