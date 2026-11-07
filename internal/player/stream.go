@@ -16,7 +16,6 @@ import (
 	"github.com/egoist/mygo/audio"
 	gomp3 "github.com/hajimehoshi/go-mp3"
 
-	"mygo-music/internal/mp4"
 	"mygo-music/internal/music"
 )
 
@@ -339,8 +338,8 @@ func openStream(dl *download, durationMs int64) (stream, error) {
 	dl.waitFor(12)
 	if head := dl.peek(0, 12); len(head) == 12 {
 		switch {
-		case mp4.Is(head):
-			return openMP4Stream(dl, durationMs)
+		case string(head[4:8]) == "ftyp":
+			return openMP4Stream(dl)
 		case (string(head[:4]) == "RIFF" || string(head[:4]) == "RF64") && string(head[8:12]) == "WAVE":
 			return openWAVStream(dl)
 		}
@@ -376,13 +375,13 @@ func openShared(dl *download, durationMs int64) (stream, error) {
 	switch s := s.(type) {
 	case *mp3Stream:
 		s.spec, s.drop = nil, dl.release
-	case *flacStream:
-		s.spec, s.drop = nil, dl.release
 	case *oggStream:
 		s.spec, s.drop = nil, dl.release
 	case *wavStream:
 		s.spec, s.drop = nil, dl.release
-	case *packetStream:
+	case *decodedStream:
+		s.spec, s.drop = nil, dl.release
+	case *adtsStream:
 		s.spec, s.drop = nil, dl.release
 	}
 	return s, nil

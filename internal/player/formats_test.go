@@ -1,6 +1,7 @@
 package player
 
 import (
+	"bytes"
 	"encoding/binary"
 	"math"
 	"os"
@@ -103,6 +104,42 @@ func TestFragmentedAAC(t *testing.T) {
 		t.Errorf("%.1f dB from the whole file", db)
 	}
 	seekLands(t, b, got, 0.05, 0, 1, 4096, 50000, 123457)
+}
+
+// AAC's packets each decode to 1024 frames, whatever its container says they
+// last: a seek lands where decoding straight through has the frame. Some sites'
+// files have a packet near the start a few frames shorter, which put every
+// seek past it that much off, as good as other audio for a second after.
+func TestAACPacketsOfOtherDurations(t *testing.T) {
+	b := bytes.Clone(readFixture(t, "seek-aac-frag.m4a"))
+	// The first fragment's packets last 1016 frames, its header says.
+	at := bytes.Index(b, []byte("tfhd")) + 4 + 8
+	if binary.BigEndian.Uint32(b[at:]) != 1024 {
+		t.Fatal("no default duration where expected")
+	}
+	binary.BigEndian.PutUint32(b[at:], 1016)
+	got := decodeAll(t, b)
+	for _, frame := range []int64{50000, 100000, 100001} {
+		s, err := openStream(downloaded(b), 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := s.SetPosition(frame); err != nil {
+			t.Fatal(err)
+		}
+		var read []float32
+		buf := make([]float32, 4096)
+		for len(read) < 44100 {
+			n, err := s.Read(buf)
+			read = append(read, buf[:n]...)
+			if err != nil {
+				break
+			}
+		}
+		if db := snr(read, got[frame*2:]); db < 20 {
+			t.Errorf("seek to %d: %.1f dB from decoding straight through", frame, db)
+		}
+	}
 }
 
 // A fragmented .m4a starts playing with only its first fragment in, its length
