@@ -25,10 +25,10 @@ func TestNowPlayingClosesAsOneLayer(t *testing.T) {
 	if !tt.HasText("Up Next") {
 		t.Fatal("now playing did not open")
 	}
-	// Mid-way out, it still covers the page and the sidebar alike.
+	// A frame into closing, it still covers the page and the sidebar alike.
 	a.nowPlaying = false
 	tt.Frame()
-	tt.Advance(60 * time.Millisecond)
+	tt.Advance(16 * time.Millisecond)
 	tt.Frame()
 	img := tt.Image()
 	sx, sy := img.Bounds().Dx(), img.Bounds().Dy()

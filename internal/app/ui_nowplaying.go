@@ -23,6 +23,11 @@ var npSpring = ui.SpringOptions{Duration: 340 * time.Millisecond}
 // cover.
 const npSlide = 60
 
+// npSlideFade is how Now Playing fades as it slides: done early, rather
+// than over the slide's spring, whose slow end kept it see-through long
+// after it was nearly in place.
+var npSlideFade = ui.Animation{Duration: 150 * time.Millisecond, NonMotion: true}
+
 // npFade is how Now Playing comes and goes while the desktop asks for less
 // motion: it fades, in place.
 var npFade = ui.Animation{Duration: 200 * time.Millisecond, NonMotion: true}
@@ -98,7 +103,10 @@ func (a *app) nowPlayingLayer(c *ui.Context, open, settled bool) {
 	if open {
 		target = 1
 	}
-	var t, shift float32
+	var t, shift, seen float32
+	if slide {
+		seen = layer.AnimateTo("seen", target, npSlideFade)
+	}
 	if reduce {
 		t = layer.AnimateTo("open", target, npFade)
 	} else {
@@ -135,7 +143,7 @@ func (a *app) nowPlayingLayer(c *ui.Context, open, settled bool) {
 	case slide:
 		// It follows a pull down, as it does growing out of the cover.
 		if k := 1 - clamp01(t); k > 0 || shift != 0 {
-			layer.Opacity(1-k).Translate(0, npSlide*k+shift)
+			layer.Opacity(clamp01(seen)).Translate(0, npSlide*k+shift)
 		}
 	case a.npStill:
 		if t < 1 {
