@@ -185,7 +185,7 @@ var zhCN = map[string]string{
 	"Nothing found":               "没有找到相关结果",
 	"Nothing here yet":            "这里还什么都没有",
 	"Now Playing":                 "正在播放",
-	"Now Playing opens out of the cover in the player bar; when off, it fades in":                                                        "播放页从播放条的封面展开；关闭后改为淡入",
+	"Now Playing opens out of the cover in the player bar and shrinks back into it, rather than sliding up and fading in":                "播放页从播放条的封面展开，关闭时缩回封面，而不是上滑淡入",
 	"Now Playing's backdrop turns into fog in the cover's colors, rising with the bass. Still being polished; uses a little more power.": "播放页的背景化作封面色调的烟雾，缓缓升起，随低音起伏；仍在打磨，会多用一些电量",
 	"Off":                              "关闭",
 	"Open":                             "打开",

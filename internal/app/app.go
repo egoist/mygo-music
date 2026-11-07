@@ -123,7 +123,7 @@ type app struct {
 	npShift     float32 // how far down it last showed, pulled
 	npPull      float32 // how far the pointer has pulled it down
 	npHeld      bool    // whether the pointer presses on it, to pull it
-	npStill     bool    // whether it comes and goes with a fade, for less motion
+	npStill     bool    // whether it comes and goes in place, sliding or fading, rather than out of the bar's cover
 	npFrom      ui.Rect // the player bar's cover, which it grows out of
 	npPane      int     // paneLyrics, paneQueue, paneStage, paneComments or paneShow
 	npPaneTop   float32 // how far the cover beside the pane starts below its top

@@ -354,11 +354,6 @@ func (a *app) settingsSections(c *ui.Context, p palette) []settingsSection {
 				a.changed()
 			}
 		})
-		row(T("Grow From the Cover"), T("Now Playing opens out of the cover in the player bar; when off, it fades in"), func() {
-			if ui.Switch(c.Key("grow-from-cover"), &s.GrowFromCover).Label(T("Grow From the Cover")).Changed() {
-				a.changed()
-			}
-		})
 		// Only on macOS: elsewhere the icon is always in the notification
 		// area.
 		if runtime.GOOS == "darwin" {
@@ -468,6 +463,11 @@ func (a *app) settingsSections(c *ui.Context, p palette) []settingsSection {
 		})
 		row(T("Fog Backdrop"), T("Now Playing's backdrop turns into fog in the cover's colors, rising with the bass. Still being polished; uses a little more power."), func() {
 			if ui.Switch(c.Key("fog"), &s.Fog).Label(T("Fog Backdrop")).Changed() {
+				a.changed()
+			}
+		})
+		row(T("Grow From the Cover"), T("Now Playing opens out of the cover in the player bar and shrinks back into it, rather than sliding up and fading in"), func() {
+			if ui.Switch(c.Key("grow-from-cover"), &s.GrowFromCover).Label(T("Grow From the Cover")).Changed() {
 				a.changed()
 			}
 		})

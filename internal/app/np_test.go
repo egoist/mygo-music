@@ -260,6 +260,7 @@ func TestFlickNowPlayingDownCloses(t *testing.T) {
 // still hid its own, which blinked.
 func TestClosingCoverLandsWithoutABlink(t *testing.T) {
 	a := newTestApp()
+	a.settings.GrowFromCover = true
 	a.pl.Cue(framesTracks(a))
 	a.pl.SetLyrics(nil)
 	a.nowPlaying, a.npPane = true, paneQueue
@@ -284,16 +285,18 @@ func TestClosingCoverLandsWithoutABlink(t *testing.T) {
 	}
 }
 
-// With Grow From the Cover off, Now Playing fades in over the whole window
-// as it opens, rather than growing out of the bar's cover, far from the
-// top of the window at first.
-func TestNowPlayingFadesInWithoutGrowing(t *testing.T) {
-	// opening is the window's top right corner, a little way into opening.
-	opening := func(grow bool) (before, during [3]uint32) {
+// Now Playing slides up as it opens, fading in over the whole window at
+// once, unless it grows out of the bar's cover, which leaves the top of the
+// window alone at first.
+func TestNowPlayingSlidesUpUnlessItGrows(t *testing.T) {
+	// opening is the window's top right corner before and a little way into
+	// opening, and how far below its place the queue's title is then.
+	opening := func(grow bool) (before, during [3]uint32, below float32) {
 		a := newTestApp()
 		a.settings.GrowFromCover = grow
 		a.pl.Cue([]music.Track{song("1", "宝船", "DOUDOU")})
 		a.pl.SetLyrics(nil)
+		a.npPane = paneQueue
 		tt := ui.NewTester(a.view, 1200, 800)
 		tt.SetDark(false)
 		tt.Frame()
@@ -310,12 +313,24 @@ func TestNowPlayingFadesInWithoutGrowing(t *testing.T) {
 		tt.Frame()
 		tt.Advance(60 * time.Millisecond)
 		tt.Frame()
-		return before, at()
+		during = at()
+		mid, _ := tt.Find("Up Next")
+		tt.Advance(time.Second)
+		tt.Frame()
+		rest, ok := tt.Find("Up Next")
+		if !ok {
+			t.Fatal("now playing did not open")
+		}
+		return before, during, mid.Y - rest.Y
 	}
-	if before, during := opening(true); before != during {
+	if before, during, _ := opening(true); before != during {
 		t.Fatalf("growing, the top right changed at once: %v to %v", before, during)
 	}
-	if before, during := opening(false); before == during {
-		t.Errorf("fading, the top right did not change: %v", before)
+	before, during, below := opening(false)
+	if before == during {
+		t.Errorf("sliding, the top right did not change: %v", before)
+	}
+	if below <= 1 || below > npSlide {
+		t.Errorf("sliding, the queue was %v below its place, want up to %v", below, npSlide)
 	}
 }
