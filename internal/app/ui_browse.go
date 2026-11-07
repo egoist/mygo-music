@@ -3,6 +3,7 @@ package app
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -18,11 +19,14 @@ import (
 // browseData is what the app has of a page, kept as it loads anew.
 type browseData struct {
 	page    *music.Browse
+	at      time.Time // when page came
 	loading bool
 	err     string
 }
 
-// loadBrowse loads a page, unless it has, or again.
+// loadBrowse loads a page, unless it has, or again. One loaded longer than
+// listsFresh ago is asked for anew, as it may change as the app plays, such
+// as songs played lately, and shows as it was while it is.
 func (a *app) loadBrowse(lib *library, page string, again bool) {
 	if lib == nil {
 		return
@@ -32,7 +36,7 @@ func (a *app) loadBrowse(lib *library, page string, again bool) {
 		d = &browseData{}
 		lib.browses[page] = d
 	}
-	if d.loading || d.page != nil && !again {
+	if d.loading || d.page != nil && !again && time.Since(d.at) <= listsFresh {
 		return
 	}
 	d.loading, d.err = true, ""
@@ -44,7 +48,7 @@ func (a *app) loadBrowse(lib *library, page string, again bool) {
 				d.err = a.problem(lib, err, T("Couldn't load this page"))
 				return
 			}
-			d.page = b
+			d.page, d.at = b, time.Now()
 		})
 	}()
 }
