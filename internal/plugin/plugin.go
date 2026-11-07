@@ -195,6 +195,11 @@ func Load(dir, dataDir string) (*Plugin, error) {
 	if m.ID == "" {
 		return nil, fmt.Errorf("%s: plugin.json needs an id", dir)
 	}
+	// The id names the plugin's data folder, so it may not lead out of it
+	// into another plugin's, as ".." would.
+	if !pluginName.MatchString(m.ID) {
+		return nil, fmt.Errorf("%s: a plugin can't be called %q", dir, m.ID)
+	}
 	if m.Name == "" {
 		m.Name = m.ID
 	}
@@ -214,6 +219,9 @@ func Load(dir, dataDir string) (*Plugin, error) {
 	}
 	if err := checkRequestHeaders(&m); err != nil {
 		return nil, fmt.Errorf("%s: %w", dir, err)
+	}
+	if !filepath.IsLocal(m.Main) {
+		return nil, fmt.Errorf("%s: main must be a file in the plugin's folder: %q", dir, m.Main)
 	}
 	source, err := os.ReadFile(filepath.Join(dir, m.Main))
 	if err != nil {
@@ -519,10 +527,7 @@ func asError(code, message string) error {
 		}
 		return errors.New(message)
 	}
-	if message == "" {
-		return known
-	}
-	return fmt.Errorf("%w: %s", known, message)
+	return music.Fail(known, message)
 }
 
 // ask calls an export on the loop; the answer comes through got, once.

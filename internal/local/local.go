@@ -587,7 +587,7 @@ func (s *Source) Stream(id, quality string) (*music.Stream, error) {
 	case "flac", "wav":
 		st.Quality = "lossless"
 	case "m4a":
-		if t, ok := m4aTrack(f, info.Size()); ok && t.Lossless() {
+		if t, ok := m4aTrack(f, info.Size()); ok && lossless(t) {
 			st.Quality = "lossless"
 		}
 	}

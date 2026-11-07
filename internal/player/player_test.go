@@ -304,3 +304,24 @@ func TestPrevSkipsBack(t *testing.T) {
 		t.Errorf("next went to %s, playing %v", p.Current().ID, p.Playing())
 	}
 }
+
+// Shuffling a whole list may start on any song, not always its first; a
+// song picked to start stays first.
+func TestShuffleOrderHead(t *testing.T) {
+	p := &Player{order: make([]int, 10)}
+	heads := map[int]bool{}
+	for range 200 {
+		for i := range p.order {
+			p.order[i] = i
+		}
+		p.shuffleOrder(-1)
+		heads[p.order[0]] = true
+	}
+	if len(heads) < 5 {
+		t.Errorf("shuffled lists start on only %v", heads)
+	}
+	p.shuffleOrder(3)
+	if p.order[0] != 3 {
+		t.Errorf("picked song is at %v", p.order)
+	}
+}

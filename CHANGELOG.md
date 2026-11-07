@@ -2,6 +2,16 @@
 
 All notable changes to MyGo Music are written down here. Versions follow [Semantic Versioning](https://semver.org).
 
+## [0.1.21] - 2026-11-07
+
+### Added
+
+- Audio in MP4s cut into fragments, as streaming sites serve it, plays as it comes in, and so does FLAC in MP4. A plugin for such a site can give the app the stream's address as it is, without converting it first.
+
+### Fixed
+
+- With Grow From the Cover on, Now Playing no longer takes hundreds of megabytes more memory each time it opens out of the cover, as it did on Windows.
+
 ## [0.1.20] - 2026-11-07
 
 ### Added
@@ -195,6 +205,7 @@ All notable changes to MyGo Music are written down here. Versions follow [Semant
 
 The first release: a native music player that plays your local files and gets everything else from plugins.
 
+[0.1.21]: https://github.com/egoist/mygo-music/compare/v0.1.20...v0.1.21
 [0.1.20]: https://github.com/egoist/mygo-music/compare/v0.1.19...v0.1.20
 [0.1.19]: https://github.com/egoist/mygo-music/compare/v0.1.18...v0.1.19
 [0.1.18]: https://github.com/egoist/mygo-music/compare/v0.1.17...v0.1.18

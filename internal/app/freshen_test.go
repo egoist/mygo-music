@@ -39,7 +39,9 @@ func TestReopenedPlaylistLoadsAnew(t *testing.T) {
 	if id := <-asked; id != "10" {
 		t.Fatalf("asked for playlist %q", id)
 	}
-	runPost(t, ch)
+	// Opening it also asks which of its songs are liked, whose answer can
+	// land first, so run what's posted until the playlist's has.
+	until(t, ch, func() bool { return !a.freshPl["10"] })
 	tt.Frame()
 	if _, ok := tt.Find("新歌"); !ok {
 		t.Error("the song added elsewhere didn't show")
@@ -51,7 +53,7 @@ func TestReopenedPlaylistLoadsAnew(t *testing.T) {
 	}
 	tt.Frame()
 	<-asked
-	runPost(t, ch)
+	until(t, ch, func() bool { return a.playlists["11"] != nil })
 	if err := tt.Click("通勤"); err != nil {
 		t.Fatal(err)
 	}

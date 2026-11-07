@@ -7,7 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"mygo-music/internal/mp4"
+	_ "github.com/egoist/mygo/audio/aac"  // AAC in MP4
+	_ "github.com/egoist/mygo/audio/flac" // FLAC in MP4
+	"github.com/egoist/mygo/audio/mp4"
 )
 
 // A WAV is chunks of RIFF: its format, its data, and maybe its tags, as an
@@ -146,12 +148,15 @@ func adtsPlayable(r io.ReaderAt) bool {
 	return h[0] == 0xff && h[1]&0xf6 == 0xf0 && h[2]>>6 == 1
 }
 
-// m4aTrack reads an .m4a's sound track, if the player plays it: ALAC or
-// AAC-LC.
+// m4aTrack reads an .m4a's sound track, if the player plays it: ALAC, FLAC
+// or AAC-LC.
 func m4aTrack(r io.ReaderAt, size int64) (*mp4.Track, bool) {
-	t, err := mp4.Read(r, size, false)
-	if err != nil || !t.Playable() {
+	t, err := mp4.ReadTrack(r, size)
+	if err != nil || !t.Decodable() {
 		return nil, false
 	}
 	return t, true
 }
+
+// lossless says whether an .m4a's track is ALAC's or FLAC's.
+func lossless(t *mp4.Track) bool { return t.Codec == "alac" || t.Codec == "fLaC" }

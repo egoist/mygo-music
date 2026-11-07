@@ -116,3 +116,20 @@ func TestIsCredit(t *testing.T) {
 		}
 	}
 }
+
+func TestLang(t *testing.T) {
+	for _, c := range []struct {
+		lines []Line
+		want  string
+	}{
+		{[]Line{{Text: "春日影"}, {Text: "悴んだ心 ふるえる眼差し"}}, "ja"},
+		{[]Line{{Text: "カタカナだけ"}}, "ja"},
+		{[]Line{{Text: "春日影"}, {Text: "我想要的只是"}}, ""},
+		{[]Line{{Text: "Hello ・ world ー"}}, ""},
+		{nil, ""},
+	} {
+		if got := Lang(c.lines); got != c.want {
+			t.Errorf("Lang(%v) = %q, want %q", c.lines, got, c.want)
+		}
+	}
+}

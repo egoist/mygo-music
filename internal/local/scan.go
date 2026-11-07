@@ -24,9 +24,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/dhowden/tag"
+	"github.com/egoist/mygo/audio/mp4"
 	"golang.org/x/text/encoding/simplifiedchinese"
-
-	"mygo-music/internal/mp4"
 )
 
 const (
@@ -358,7 +357,7 @@ func (s *Source) readFile(file found) (entry, bool) {
 	case "wav":
 		e.Duration = wavDuration(f, file.size)
 	case "m4a":
-		e.Duration = track.Millis()
+		e.Duration = track.Duration.Milliseconds()
 	case "aac":
 		e.Duration = adtsDuration(f, file.size)
 	default:
@@ -598,7 +597,7 @@ func coverExt(pic *tag.Picture) string {
 func fileType(f io.ReaderAt, path string) string {
 	var head [12]byte
 	if _, err := f.ReadAt(head[:], 0); err == nil {
-		if mp4.Is(head[:]) {
+		if string(head[4:8]) == "ftyp" {
 			return "m4a"
 		}
 		if (string(head[:4]) == "RIFF" || string(head[:4]) == "RF64") && string(head[8:12]) == "WAVE" {

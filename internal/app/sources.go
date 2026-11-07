@@ -65,6 +65,8 @@ type library struct {
 	// ErrSetup, and asked says the listener was already taken there once.
 	needsSignIn, needsSetup bool
 	askedSignIn, askedSetup bool
+	// setupReason is what the source said it needs setting up for, if it did.
+	setupReason string
 
 	mine, saved []music.Playlist // the listener's playlists: made, and saved
 	mineAt      time.Time        // when they were last asked for
@@ -243,10 +245,13 @@ func (a *app) problem(lib *library, err error, msg string) string {
 		}
 		return Tf("Sign in to %s to see this", lib.name())
 	case errors.Is(err, music.ErrSetup):
-		lib.needsSetup = true
+		lib.needsSetup, lib.setupReason = true, music.Reason(err)
 		if !lib.askedSetup {
 			lib.askedSetup = true
 			a.openSourceSettings()
+		}
+		if lib.setupReason != "" {
+			return lib.setupReason
 		}
 		return Tf("%s needs setting up first", lib.name())
 	case errors.Is(err, music.ErrUnsupported):
@@ -263,6 +268,7 @@ func (a *app) actionFailed(lib *library, err error, msg string) {
 	case errors.Is(err, music.ErrSignIn):
 		a.promptSignIn(lib)
 	case errors.Is(err, music.ErrSetup):
+		lib.needsSetup, lib.setupReason = true, music.Reason(err)
 		a.openSourceSettings()
 	default:
 		a.toast = msg

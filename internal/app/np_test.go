@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"mygo-music/internal/lyrics"
 	"mygo-music/internal/music"
 )
 
@@ -339,5 +340,46 @@ func TestNowPlayingSlidesUpUnlessItGrows(t *testing.T) {
 	}
 	if below < 100 {
 		t.Errorf("sliding, the queue was only %v below its place", below)
+	}
+}
+
+// In a window taller than wide, the lyrics start under the tabs, the line
+// sung a third of the way down: they started level with the cover, which
+// sits ever lower in the middle of its column as the window grows taller,
+// leaving the top of the window empty and the lines before cut off.
+func TestLyricsFillATallWindow(t *testing.T) {
+	var lines []lyrics.Line
+	for i := range 30 {
+		at := time.Duration(i) * 5 * time.Second
+		lines = append(lines, lyrics.Line{At: at, End: at + 5*time.Second, Text: fmt.Sprintf("第%02d句", i)})
+	}
+	for _, size := range [][2]int{{1200, 800}, {750, 1330}, {600, 1400}} {
+		a := newTestApp()
+		a.pl.Cue([]music.Track{song("1", "改变", "与非门")})
+		a.pl.SetLyrics(lines)
+		a.pl.Hold(77 * time.Second) // 第15句
+		a.nowPlaying = true
+		w, h := size[0], size[1]
+		tt := ui.NewTester(a.view, w, h)
+		settled(tt)
+		settled(tt)
+		tab, ok := tt.Find("Lyrics")
+		if !ok {
+			t.Fatal("no Lyrics tab")
+		}
+		lit, ok := tt.Find("第15句")
+		if !ok {
+			t.Fatalf("%dx%d: the line sung isn't shown", w, h)
+		}
+		cover, _ := tt.Find("Album Cover")
+		// The pane starts level with the cover where the cover fills its
+		// column's height, and right under the tabs where it can't.
+		top := max(cover.Y, tab.Y+tab.H+8)
+		if h > w {
+			top = tab.Y + tab.H + 8
+		}
+		if want := top + (float32(h)-top)*0.3; lit.Y > want+60 {
+			t.Errorf("%dx%d: the line sung is at %v, want about %v, a third of the way down the lyrics", w, h, lit.Y, want)
+		}
 	}
 }
