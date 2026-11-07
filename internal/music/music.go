@@ -339,6 +339,32 @@ var (
 	ErrUnsupported = errors.New("not supported by this source")
 )
 
+// Fail is an error of a kind above, with what the source said of it, for the
+// listener: what to fill in, or what to install. Reason gives it back.
+func Fail(kind error, reason string) error {
+	if reason == "" {
+		return kind
+	}
+	return &failure{kind, reason}
+}
+
+type failure struct {
+	kind   error
+	reason string
+}
+
+func (f *failure) Error() string { return f.kind.Error() + ": " + f.reason }
+func (f *failure) Unwrap() error { return f.kind }
+
+// Reason is what the source said of why err happened, if it said anything.
+func Reason(err error) string {
+	var f *failure
+	if errors.As(err, &f) {
+		return f.reason
+	}
+	return ""
+}
+
 // Qualities are the levels of audio the listener can ask a source for, worst
 // first. A source may have others, or none, and answers what it has.
 var Qualities = []string{"standard", "high", "lossless"}

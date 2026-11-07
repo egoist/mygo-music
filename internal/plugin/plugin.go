@@ -519,10 +519,7 @@ func asError(code, message string) error {
 		}
 		return errors.New(message)
 	}
-	if message == "" {
-		return known
-	}
-	return fmt.Errorf("%w: %s", known, message)
+	return music.Fail(known, message)
 }
 
 // ask calls an export on the loop; the answer comes through got, once.

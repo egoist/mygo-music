@@ -798,6 +798,9 @@ func errorText(err error) string {
 	case errors.Is(err, music.ErrSignIn):
 		return i18n.T("Sign in to play this song")
 	case errors.Is(err, music.ErrSetup):
+		if reason := music.Reason(err); reason != "" {
+			return reason
+		}
 		return i18n.T("The plugin needs setting up")
 	}
 	return err.Error()

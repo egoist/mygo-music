@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"fmt"
 	"mygo-music/internal/plugin"
 	"net/url"
 	"os"
@@ -588,6 +589,44 @@ func TestErrSetupOffersSettings(t *testing.T) {
 	until(t, ch, func() bool { return !a.needsSetup })
 	if a.askedSetup {
 		t.Error("it wouldn't ask next time it needs it")
+	}
+}
+
+// A source that needs setting up says what for, on its page and in its settings.
+// Every plugin said "Fill these in for it to work", even with its fields filled
+// in, when what it wanted was a program installed: what it said was dropped.
+func TestErrSetupSaysWhy(t *testing.T) {
+	const why = "Install ffmpeg to play this"
+	a := newTestApp()
+	ch := posts(a)
+	fake(a).info.Settings = []music.Setting{{Key: "key", Label: "API Key"}}
+	fake(a).vals["key"] = "secret"
+	fake(a).playlist = func(string) (*music.Playlist, error) {
+		return nil, fmt.Errorf("loading: %w", music.Fail(music.ErrSetup, why))
+	}
+	a.library.askedSetup = true // opening the window takes a real app
+	a.open(route{page: pagePlaylist, id: "7"})
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	runPost(t, ch)
+	tt.Frame()
+	if _, ok := tt.Find(why); !ok {
+		t.Errorf("the page doesn't say why: %q", tt.Texts())
+	}
+
+	a.settingsPage = "plugins"
+	settings := ui.NewTester(a.settingsView, 760, 1400)
+	settings.Frame()
+	if _, ok := settings.Find(why); !ok {
+		t.Errorf("the settings don't say why: %q", settings.Texts())
+	}
+
+	// Saying nothing, it names the fields still empty, not those filled in.
+	a.library.setupReason = ""
+	fake(a).info.Settings = append(fake(a).info.Settings, music.Setting{Key: "region", Label: "Region"})
+	settings.Frame()
+	if _, ok := settings.Find("Fill in Region for it to work"); !ok {
+		t.Errorf("the settings don't name the empty field: %q", settings.Texts())
 	}
 }
 
