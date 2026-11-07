@@ -103,7 +103,7 @@ func (s *Song) copy(w io.Writer) error {
 	for k, v := range s.st.Headers {
 		req.Header.Set(k, v)
 	}
-	res, err := http.DefaultClient.Do(req)
+	res, err := music.HeadersStay(http.DefaultClient, req.URL.Hostname(), s.st.Headers).Do(req)
 	if err != nil {
 		return err
 	}

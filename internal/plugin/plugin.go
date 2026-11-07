@@ -128,8 +128,9 @@ type Manifest struct {
 	Main string `json:"main,omitempty"`
 	// MinAppVersion is the oldest version of the app the plugin works with,
 	// such as 0.1.8. An older one won't install it, or load it.
-	MinAppVersion string      `json:"minAppVersion,omitempty"`
-	Permissions   Permissions `json:"permissions"`
+	MinAppVersion  string           `json:"minAppVersion,omitempty"`
+	Permissions    Permissions      `json:"permissions"`
+	RequestHeaders []RequestHeaders `json:"requestHeaders,omitempty"`
 }
 
 // appVersion is the app's version, which the app sets. With none, as when
@@ -205,6 +206,9 @@ func Load(dir, dataDir string) (*Plugin, error) {
 		if _, ok := versionNumbers(appVersion); ok && IsNewer(m.MinAppVersion, appVersion) {
 			return nil, &NeedsNewerApp{Plugin: m.Name, Version: m.MinAppVersion}
 		}
+	}
+	if err := checkRequestHeaders(&m); err != nil {
+		return nil, fmt.Errorf("%s: %w", dir, err)
 	}
 	source, err := os.ReadFile(filepath.Join(dir, m.Main))
 	if err != nil {
