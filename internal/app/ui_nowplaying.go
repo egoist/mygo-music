@@ -18,16 +18,6 @@ var white = ui.RGB(255, 255, 255)
 // from a pull too short to close it.
 var npSpring = ui.SpringOptions{Duration: 340 * time.Millisecond}
 
-// npSlide is how far below its place Now Playing comes from as it slides
-// up, fading in, and goes back to as it closes, unless it grows out of the
-// cover.
-const npSlide = 60
-
-// npSlideFade is how Now Playing fades as it slides: done early, rather
-// than over the slide's spring, whose slow end kept it see-through long
-// after it was nearly in place.
-var npSlideFade = ui.Animation{Duration: 150 * time.Millisecond, NonMotion: true}
-
 // npFade is how Now Playing comes and goes while the desktop asks for less
 // motion: it fades, in place.
 var npFade = ui.Animation{Duration: 200 * time.Millisecond, NonMotion: true}
@@ -61,17 +51,18 @@ func (a *app) npAtRest(open bool) bool {
 	return a.npT <= 0
 }
 
-// nowPlayingLayer holds Now Playing over the whole window. It slides up as
-// it opens, fading in, and back down as it closes; with less motion, it
-// only fades. Growing out of the cover, an experiment the listener turns
-// on, it grows out of the cover in the player bar as it opens, a card that
-// takes the window, the cover flying out of the bar to its place, and
-// shrinks back into it as it closes. Pulled down, it follows the pointer,
-// growing out of the cover smaller and rounder the farther it goes, and
-// let go far or fast enough it falls back; otherwise it springs back. The layer stays on top all the way,
-// rather than leaving as an exit transition would, under the rest of the
-// window: that would show it going over the sidebar's material while the
-// page above it hid it at once.
+// nowPlayingLayer holds Now Playing over the whole window. It slides up
+// from below the window as it opens, as it is, and back down out of it as
+// it closes; with less motion, it only fades. Growing out of the cover, an
+// experiment the listener turns on, it grows out of the cover in the
+// player bar as it opens, a card that takes the window, the cover flying
+// out of the bar to its place, and shrinks back into it as it closes.
+// Pulled down, it follows the pointer, growing out of the cover smaller and
+// rounder the farther it goes, and let go far or fast enough it falls the
+// rest of the way; otherwise it springs back. The layer stays on top all
+// the way, rather than leaving as an exit transition would, under the rest
+// of the window: that would show it going over the sidebar's material
+// while the page above it hid it at once.
 func (a *app) nowPlayingLayer(c *ui.Context, open, settled bool) {
 	w, h := c.Size()
 	layer := ui.Box(c.Key("now-playing-layer")).Absolute().Top(0).Left(0).Right(0).Bottom(0)
@@ -103,10 +94,7 @@ func (a *app) nowPlayingLayer(c *ui.Context, open, settled bool) {
 	if open {
 		target = 1
 	}
-	var t, shift, seen float32
-	if slide {
-		seen = layer.AnimateTo("seen", target, npSlideFade)
-	}
+	var t, shift float32
 	if reduce {
 		t = layer.AnimateTo("open", target, npFade)
 	} else {
@@ -143,7 +131,7 @@ func (a *app) nowPlayingLayer(c *ui.Context, open, settled bool) {
 	case slide:
 		// It follows a pull down, as it does growing out of the cover.
 		if k := 1 - clamp01(t); k > 0 || shift != 0 {
-			layer.Opacity(clamp01(seen)).Translate(0, npSlide*k+shift)
+			layer.Translate(0, h*k+shift)
 		}
 	case a.npStill:
 		if t < 1 {

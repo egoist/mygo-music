@@ -48,7 +48,7 @@ type settings struct {
 	Appearance string `json:"appearance"`
 	// GrowFromCover opens Now Playing out of the player bar's cover, and
 	// closes it back into it: an experiment the listener turns on. Off, it
-	// slides up and fades in.
+	// slides up from the bottom of the window.
 	GrowFromCover bool `json:"growFromCover"`
 	// Smoke makes the progress bars comets trailing smoke as music plays,
 	// for a few percent of a core: the listener turns it on.

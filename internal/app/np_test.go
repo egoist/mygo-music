@@ -25,10 +25,10 @@ func TestNowPlayingClosesAsOneLayer(t *testing.T) {
 	if !tt.HasText("Up Next") {
 		t.Fatal("now playing did not open")
 	}
-	// A frame into closing, it still covers the page and the sidebar alike.
+	// Mid-way out, it still covers the page and the sidebar alike.
 	a.nowPlaying = false
 	tt.Frame()
-	tt.Advance(16 * time.Millisecond)
+	tt.Advance(60 * time.Millisecond)
 	tt.Frame()
 	img := tt.Image()
 	sx, sy := img.Bounds().Dx(), img.Bounds().Dy()
@@ -285,13 +285,14 @@ func TestClosingCoverLandsWithoutABlink(t *testing.T) {
 	}
 }
 
-// Now Playing slides up as it opens, fading in over the whole window at
-// once, unless it grows out of the bar's cover, which leaves the top of the
-// window alone at first.
+// Now Playing slides up from below the window as it opens, as it is,
+// rather than fading in, unless it grows out of the bar's cover, which
+// leaves the top of the window alone at first.
 func TestNowPlayingSlidesUpUnlessItGrows(t *testing.T) {
-	// opening is the window's top right corner before and a little way into
-	// opening, and how far below its place the queue's title is then.
-	opening := func(grow bool) (before, during [3]uint32, below float32) {
+	// opening is the window's top right and bottom right corners, before and
+	// a little way into opening, and how far below its place the queue's
+	// title is then.
+	opening := func(grow bool) (before, during [2][3]uint32, below float32) {
 		a := newTestApp()
 		a.settings.GrowFromCover = grow
 		a.pl.Cue([]music.Track{song("1", "宝船", "DOUDOU")})
@@ -300,11 +301,14 @@ func TestNowPlayingSlidesUpUnlessItGrows(t *testing.T) {
 		tt := ui.NewTester(a.view, 1200, 800)
 		tt.SetDark(false)
 		tt.Frame()
-		at := func() [3]uint32 {
+		at := func() (px [2][3]uint32) {
 			img := tt.Image()
 			sc := float32(img.Bounds().Dx()) / 1200
-			r, g, b, _ := img.At(int(1100*sc), int(60*sc)).RGBA()
-			return [3]uint32{r, g, b}
+			for i, y := range []float32{60, 780} {
+				r, g, b, _ := img.At(int(1100*sc), int(y*sc)).RGBA()
+				px[i] = [3]uint32{r, g, b}
+			}
+			return px
 		}
 		before = at()
 		a.nowPlaying = true
@@ -323,14 +327,17 @@ func TestNowPlayingSlidesUpUnlessItGrows(t *testing.T) {
 		}
 		return before, during, mid.Y - rest.Y
 	}
-	if before, during, _ := opening(true); before != during {
-		t.Fatalf("growing, the top right changed at once: %v to %v", before, during)
+	if before, during, _ := opening(true); before[0] != during[0] {
+		t.Fatalf("growing, the top right changed at once: %v to %v", before[0], during[0])
 	}
 	before, during, below := opening(false)
-	if before == during {
-		t.Errorf("sliding, the top right did not change: %v", before)
+	// Its backdrop is dark, where the bar under it is light: half faded
+	// in, it would be between the two.
+	light := func(px [3]uint32) uint32 { return (px[0] + px[1] + px[2]) / 3 }
+	if light(during[1]) > light(before[1])/2 {
+		t.Errorf("sliding, the bottom right went from %v to only %v: not covered, or not yet all there", before[1], during[1])
 	}
-	if below <= 1 || below > npSlide {
-		t.Errorf("sliding, the queue was %v below its place, want up to %v", below, npSlide)
+	if below < 100 {
+		t.Errorf("sliding, the queue was only %v below its place", below)
 	}
 }
