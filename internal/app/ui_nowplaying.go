@@ -63,7 +63,7 @@ func (a *app) npAtRest(open bool) bool {
 func (a *app) nowPlayingLayer(c *ui.Context, open, settled bool) {
 	w, h := c.Size()
 	layer := ui.Box(c.Key("now-playing-layer")).Absolute().Top(0).Left(0).Right(0).Bottom(0)
-	a.npStill = c.Preferences().ReduceMotion
+	a.npStill = c.Preferences().ReduceMotion || !a.settings.GrowFromCover
 	spring := npSpring
 	_, dy, held := layer.Dragged()
 	held = held && open

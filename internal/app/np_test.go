@@ -283,3 +283,39 @@ func TestClosingCoverLandsWithoutABlink(t *testing.T) {
 		}
 	}
 }
+
+// With Grow From the Cover off, Now Playing fades in over the whole window
+// as it opens, rather than growing out of the bar's cover, far from the
+// top of the window at first.
+func TestNowPlayingFadesInWithoutGrowing(t *testing.T) {
+	// opening is the window's top right corner, a little way into opening.
+	opening := func(grow bool) (before, during [3]uint32) {
+		a := newTestApp()
+		a.settings.GrowFromCover = grow
+		a.pl.Cue([]music.Track{song("1", "宝船", "DOUDOU")})
+		a.pl.SetLyrics(nil)
+		tt := ui.NewTester(a.view, 1200, 800)
+		tt.SetDark(false)
+		tt.Frame()
+		at := func() [3]uint32 {
+			img := tt.Image()
+			sc := float32(img.Bounds().Dx()) / 1200
+			r, g, b, _ := img.At(int(1100*sc), int(60*sc)).RGBA()
+			return [3]uint32{r, g, b}
+		}
+		before = at()
+		a.nowPlaying = true
+		tt.Frame()
+		tt.Advance(16 * time.Millisecond)
+		tt.Frame()
+		tt.Advance(60 * time.Millisecond)
+		tt.Frame()
+		return before, at()
+	}
+	if before, during := opening(true); before != during {
+		t.Fatalf("growing, the top right changed at once: %v to %v", before, during)
+	}
+	if before, during := opening(false); before == during {
+		t.Errorf("fading, the top right did not change: %v", before)
+	}
+}
