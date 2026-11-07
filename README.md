@@ -181,7 +181,7 @@ Everything else takes a permission in `plugin.json`:
   ]
   ```
 
-  `hosts` are hosts or `*.domain` of the pictures, which needn't be ones `fetch` reaches, or `{setting:key}`, the host of the server a setting names. `*` isn't one. Each parameter of `query` is set on the picture's URL, over one it has of that name, with `{size}` the pixels across the app shows it at.
+  `hosts` are hosts or `*.domain` of the pictures, which needn't be ones `fetch` reaches, or `{setting:key}`, the host of the server a setting names. `*` isn't one. Each parameter of `query` is set on the picture's URL, over one it has of that name, with `{size}` the pixels across the app shows it at. Without `imageSizes`, a plugin whose service can size its pictures does best to give their URLs at about 600 pixels, the most the app shows one at, rather than as large as they were made.
 - `"process": ["bin/helper-*", "ffmpeg"]` lists the programs `host.spawn` can start, for what JavaScript can't do: a path from the plugin's folder or absolute, or a name looked up on `PATH`. A path only matches a path and a name only a name, and `*` matches within one folder, as in a glob. `["*"]`, or `true`, asks for any program, which the listener is warned about. The listener has to allow it in Settings first, as a program can do anything they can. Programs end when the plugin does, and once allowed, `fetch` can reach this machine too, to talk to them. Ship one binary per platform and pick it with `host.platform` and `host.arch`.
 
 ## Credits
