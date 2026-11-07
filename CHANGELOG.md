@@ -28,7 +28,7 @@ All notable changes to MyGo Music are written down here. Versions follow [Semant
 ### Added
 
 - Plugins can head the page of a feature card's songs, such as a daily mix, with their own title and subtitle, and the page is headed as the card is.
-- Plugins can mark a playlist of yours as fixed, such as NetEase's liked songs. It stays under My Playlists but can't be renamed, deleted or changed.
+- Plugins can mark a playlist of yours as fixed, such as a service's liked songs. It stays under My Playlists but can't be renamed, deleted or changed.
 
 ### Fixed
 

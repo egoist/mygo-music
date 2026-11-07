@@ -2,16 +2,22 @@ package app
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/color"
 	"image/jpeg"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"runtime"
+	"slices"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"mygo-music/internal/music"
 )
 
 // An animated WebP cover, as some playlists have, shows its first frame,
@@ -170,5 +176,71 @@ func TestArtCacheSharesCoverAcrossSizes(t *testing.T) {
 	}
 	if len(c.loads) > 0 || len(c.sources) > 0 {
 		t.Errorf("kept %d loads and %d sources once loaded", len(c.loads), len(c.sources))
+	}
+}
+
+// Covers decode while their pixels fit together, and one with more than
+// there are decodes alone rather than waiting for ever: eight covers
+// thousands of pixels across, decoding at once, took hundreds of
+// megabytes before they shrank to a row's.
+func TestCoversDecodeWhileTheirPixelsFit(t *testing.T) {
+	b := newPixelBudget(100)
+	done := make(chan int)
+	go func() { done <- b.take(1000) }()
+	select {
+	case n := <-done:
+		b.give(n)
+	case <-time.After(time.Second):
+		t.Fatal("a cover bigger than the budget waited for ever")
+	}
+
+	first := b.take(60)
+	go func() { done <- b.take(60) }()
+	select {
+	case <-done:
+		t.Fatal("two covers decoded at once whose pixels don't fit together")
+	case <-time.After(50 * time.Millisecond):
+	}
+	b.give(first)
+	select {
+	case n := <-done:
+		b.give(n)
+	case <-time.After(time.Second):
+		t.Fatal("a cover still waited once the one before it decoded")
+	}
+}
+
+// A cover of a source whose image server makes it the size it shows is
+// fetched that size, each size its own: the app fetched a plugin's covers
+// as large as they were made, a few megabytes each, for rows of 40 pixels.
+func TestCoverFetchedTheSizeItShows(t *testing.T) {
+	var data bytes.Buffer
+	jpeg.Encode(&data, image.NewRGBA(image.Rect(0, 0, 8, 8)), nil)
+	var mu sync.Mutex
+	var asked []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		asked = append(asked, r.URL.RawQuery)
+		mu.Unlock()
+		w.Write(data.Bytes())
+	}))
+	defer srv.Close()
+	defer func(was func(*url.URL, int) *url.URL) { music.ImageSized = was }(music.ImageSized)
+	music.ImageSized = func(u *url.URL, px int) *url.URL {
+		sized := *u
+		sized.RawQuery = fmt.Sprintf("param=%dy%d", px, px)
+		return &sized
+	}
+	posts := make(chan func(), 8)
+	c := newArtCache(func(fn func()) { posts <- fn })
+	cover := srv.URL + "/cover.jpg"
+	c.get(sized(cover, 96), false)
+	c.get(sized(cover, 600), false)
+	for range 2 {
+		runPost(t, posts)
+	}
+	slices.Sort(asked)
+	if want := []string{"param=600y600", "param=96y96"}; !slices.Equal(asked, want) {
+		t.Errorf("fetched %q, want %q", asked, want)
 	}
 }

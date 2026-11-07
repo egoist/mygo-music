@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"slices"
 	"sync/atomic"
 
@@ -234,6 +235,7 @@ func (a *app) makeSources() {
 	a.plugins = plugin.Discover(pluginsDir(), userDataDir("plugin-data"))
 	a.headers = &headerPlugins{}
 	music.ImageHeaders = a.headers.image
+	music.ImageSized = a.headers.sized
 	for _, p := range a.plugins {
 		lib := newLibrary(p)
 		if !slices.ContainsFunc(a.allLibs, func(l *library) bool { return l.id == lib.id }) {
@@ -383,6 +385,10 @@ func Run() error {
 		a.syncDock()
 		a.win.OnShow(a.syncDock)
 		a.win.OnHide(a.syncDock)
+		// Hidden, it draws nothing for a while: what the heap took for
+		// the pages it showed goes back to the system, which Go would
+		// keep for minutes.
+		a.win.OnHide(func() { go debug.FreeOSMemory() })
 		// Shown or switched to a while after, it shows what's new.
 		a.win.OnFocus(a.freshenHome)
 		a.applyTray()

@@ -399,7 +399,7 @@ type Source interface {
 	IsLiked(ids []string) (map[string]bool, error)
 	Like(id string, on bool) error
 	// LikeEpisode likes an episode of a podcast, which not every source that
-	// likes songs can: NetEase's liked songs take none.
+	// likes songs can: a service's liked songs may take none.
 	LikeEpisode(id string, on bool) error
 
 	CreatePlaylist(name string) (*Playlist, error)

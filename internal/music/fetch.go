@@ -27,6 +27,28 @@ const maxFetch = 64 << 20
 // It may answer nil.
 var ImageHeaders func(u *url.URL) map[string]string
 
+// ImageSized, when set, answers the URL to fetch the picture at u with, to
+// show it px pixels across, from an image server that makes it that size,
+// or nil to fetch u as it is.
+var ImageSized func(u *url.URL, px int) *url.URL
+
+// SizedImage returns the URL to fetch the picture at u with to show it px
+// pixels across: u itself, unless its source's image server makes it that
+// size.
+func SizedImage(u string, px int) string {
+	if ImageSized == nil || px <= 0 {
+		return u
+	}
+	parsed, err := url.Parse(u)
+	if err != nil {
+		return u
+	}
+	if sized := ImageSized(parsed, px); sized != nil {
+		return sized.String()
+	}
+	return u
+}
+
 // Fetch returns what's at url, of the web or a file://, such as a cover.
 func Fetch(u string) ([]byte, error) {
 	if path, ok := PathOf(u); ok {
