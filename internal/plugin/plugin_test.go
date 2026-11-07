@@ -375,6 +375,49 @@ export function suggest() { const t = host.storage.get("token"); return [t ? t.v
 	}
 }
 
+// The module's top level can use its storage and settings as it starts, as a
+// plugin reads its saved sign-in there.
+func TestTopLevelReadsStorage(t *testing.T) {
+	dir, data := write(t, `{"id":"x"}`, `
+const saved = host.storage.get("session");
+host.storage.set("seen", true);
+host.storage.remove("gone");
+const server = host.setting("server");
+export function home() { return { title: (saved ? saved.user : "none") + " " + (server || "-") }; }
+export function signOut() { host.storage.set("session", { user: "egoist" }); }`)
+	first, err := Load(dir, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := first.SignOut(); err != nil {
+		t.Fatal(err)
+	}
+	first.SetSetting("server", "nas.local")
+	first.Close()
+	p, err := Load(dir, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	done := make(chan string, 1)
+	go func() {
+		b, err := p.Home()
+		if err != nil {
+			done <- err.Error()
+			return
+		}
+		done <- b.Title
+	}()
+	select {
+	case got := <-done:
+		if got != "egoist nas.local" {
+			t.Fatalf("home: %q", got)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the plugin got stuck starting")
+	}
+}
+
 // A browser sign-in comes back with its query, and a plugin can only open pages.
 func TestSignInRedirect(t *testing.T) {
 	var opened string

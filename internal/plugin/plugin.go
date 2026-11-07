@@ -161,6 +161,11 @@ type Plugin struct {
 	exports  map[string]bool
 	locales  map[string]map[string]string // by language, the English to what it is in it
 
+	// starting is held while the plugin starts, and by Close, so one start
+	// runs at a time and none outlives a Close. It isn't mu: the module's top
+	// level runs as it starts, and the host functions it calls take mu.
+	starting sync.Mutex
+
 	mu       sync.Mutex // guards what follows
 	settings map[string]string
 	storage  map[string]json.RawMessage
@@ -345,6 +350,8 @@ func (p *Plugin) Grant(on bool) error {
 
 // Close stops the plugin, and the programs it started.
 func (p *Plugin) Close() {
+	p.starting.Lock()
+	defer p.starting.Unlock()
 	p.mu.Lock()
 	v := p.vm
 	p.vm = nil
@@ -401,19 +408,33 @@ var helperScript = func() *moejs.Script {
 
 // running is the plugin's runtime, started if it isn't.
 func (p *Plugin) running() (*vm, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.vm != nil {
-		return p.vm, nil
+	if v := p.current(); v != nil {
+		return v, nil
 	}
+	p.starting.Lock()
+	defer p.starting.Unlock()
+	if v := p.current(); v != nil {
+		return v, nil
+	}
+	// Not under mu: the top level may read its storage or settings.
 	v, err := p.start()
 	if err != nil {
 		return nil, fmt.Errorf("starting plugin %s: %w", p.manifest.ID, err)
 	}
+	p.mu.Lock()
 	p.vm = v
+	p.mu.Unlock()
 	return v, nil
 }
 
+func (p *Plugin) current() *vm {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.vm
+}
+
+// start runs the plugin, its module's top level too. The caller holds
+// p.starting, and not p.mu, which the host functions take.
 func (p *Plugin) start() (*vm, error) {
 	// host.dataDir is there for the plugin to use, and for programs it starts.
 	if err := os.MkdirAll(p.data, 0o700); err != nil {
@@ -426,7 +447,10 @@ func (p *Plugin) start() (*vm, error) {
 	if err != nil {
 		return nil, err
 	}
-	api, err := webapi.Install(loop, p.webOptions())
+	p.mu.Lock()
+	web := p.webOptions()
+	p.mu.Unlock()
+	api, err := webapi.Install(loop, web)
 	if err != nil {
 		return nil, err
 	}
