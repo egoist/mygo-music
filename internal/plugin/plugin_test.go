@@ -698,3 +698,23 @@ func TestBadLocale(t *testing.T) {
 		t.Errorf("got %v", err)
 	}
 }
+
+// A plugin's id and main stay inside its own folders: an id of ".." would
+// read and remove another plugin's saved settings, and a main of
+// "../x.js" would run code from outside the plugin.
+func TestLoadKeepsToItsFolders(t *testing.T) {
+	for _, manifest := range []string{
+		`{"id":".."}`,
+		`{"id":"../other"}`,
+		`{"id":"a/b"}`,
+		`{"id":"x","main":"../outside.js"}`,
+		`{"id":"x","main":"/etc/outside.js"}`,
+	} {
+		dir, data := write(t, manifest, "")
+		os.WriteFile(filepath.Join(filepath.Dir(dir), "outside.js"), []byte(""), 0o600)
+		if p, err := Load(dir, data); err == nil {
+			p.Close()
+			t.Errorf("loaded %s", manifest)
+		}
+	}
+}
