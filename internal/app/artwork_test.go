@@ -2,13 +2,11 @@ package app
 
 import (
 	"bytes"
-	"fmt"
 	"image"
 	"image/color"
 	"image/jpeg"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"runtime"
 	"slices"
@@ -16,8 +14,6 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-
-	"mygo-music/internal/music"
 )
 
 // An animated WebP cover, as some playlists have, shows its first frame,
@@ -210,9 +206,9 @@ func TestCoversDecodeWhileTheirPixelsFit(t *testing.T) {
 	}
 }
 
-// A cover of a source whose image server makes it the size it shows is
-// fetched that size, each size its own: the app fetched a plugin's covers
-// as large as they were made, a few megabytes each, for rows of 40 pixels.
+// A cover whose URL says where its size goes is fetched the size it shows,
+// each size its own: the app fetched a plugin's covers as large as they
+// were made, a few megabytes each, for rows of 40 pixels.
 func TestCoverFetchedTheSizeItShows(t *testing.T) {
 	var data bytes.Buffer
 	jpeg.Encode(&data, image.NewRGBA(image.Rect(0, 0, 8, 8)), nil)
@@ -225,15 +221,9 @@ func TestCoverFetchedTheSizeItShows(t *testing.T) {
 		w.Write(data.Bytes())
 	}))
 	defer srv.Close()
-	defer func(was func(*url.URL, int) *url.URL) { music.ImageSized = was }(music.ImageSized)
-	music.ImageSized = func(u *url.URL, px int) *url.URL {
-		sized := *u
-		sized.RawQuery = fmt.Sprintf("param=%dy%d", px, px)
-		return &sized
-	}
 	posts := make(chan func(), 8)
 	c := newArtCache(func(fn func()) { posts <- fn })
-	cover := srv.URL + "/cover.jpg"
+	cover := srv.URL + "/cover.jpg?param={size}y{size}"
 	c.get(sized(cover, 96), false)
 	c.get(sized(cover, 600), false)
 	for range 2 {

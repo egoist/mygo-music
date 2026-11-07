@@ -235,7 +235,6 @@ func (a *app) makeSources() {
 	a.plugins = plugin.Discover(pluginsDir(), userDataDir("plugin-data"))
 	a.headers = &headerPlugins{}
 	music.ImageHeaders = a.headers.image
-	music.ImageSized = a.headers.sized
 	for _, p := range a.plugins {
 		lib := newLibrary(p)
 		if !slices.ContainsFunc(a.allLibs, func(l *library) bool { return l.id == lib.id }) {

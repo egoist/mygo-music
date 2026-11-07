@@ -111,6 +111,8 @@ Export a function for each thing the plugin does. Each takes one object of param
 
 The shapes are in [`internal/music/music.go`](internal/music/music.go) by their JSON names. Times are in milliseconds. A `Browse` is `{title, subtitle, imageUrl, description, sections}`: with an `imageUrl`, such as a listener's avatar, it's headed round, as an artist's page is, and `description` goes under the title a line to each line. A section can hold `tracks`, `albums`, `artists`, `playlists`, `shows`, `stations`, `links` (`{title, subtitle, imageUrl, page}`), a `morePage`, and `empty`, what it says while it holds nothing. A source's first section of `tracks` leads its Home as a card of the day's songs, which opens a page of all of them, headed by the section's `pageTitle` if it has one, else its `title`, and its `subtitle` after the count of songs. A show's `publisherPage` is a `browse` page of who publishes it, which their name on the show's page opens.
 
+An `imageUrl` can say where its size goes, with `{size}`, for an image server that makes pictures the size asked: `https://img.example.com/cover.jpg?param={size}y{size}` or `https://img.example.com/{size}/cover.jpg`. The app fills in how many pixels across it shows the picture at, 40 in a row and 600 in Now Playing, or 600 where nothing asks for a size. Without it, give pictures at about 800 pixels if the service can, rather than as large as they were made: the app fetches and decodes the whole of each, a few megabytes for one thousands of pixels across, to show it in a row.
+
 Of the `playlists`, those with `mine` are the listener's own, listed under My Playlists, and the rest are ones they saved. One that is `mine` and also `fixed`, such as the songs they liked, is kept by the source itself: the app doesn't offer to rename it, delete it, add songs to it, take them out or move them.
 
 `navigation` is the plugin's sidebar, in its order. An entry opens a `browse` page of its own by `page`, or one of the app's by `builtin`: `home`, `liked`, `savedAlbums`, `stations` or `shows`, which can be given a `title`. Without `navigation`, the sidebar has an entry for each of the app's pages the plugin can do. Up to four stations show as a switch over one card, and more as a grid.
@@ -172,16 +174,6 @@ Everything else takes a permission in `plugin.json`:
   ```
 
   `hosts` are hosts or `*.domain`, which the network permission has to reach, or `{setting:key}`, the host of the server a setting names, such as `https://nas.local:5666`, while the network permission reaches it. `*` isn't one. Without `kinds`, they go with both. In `headers`, `{setting:key}` is what the listener filled in and `{storage:key}` what the plugin keeps with `host.storage`, as each is when the request goes out: a token the plugin stores anew goes with the next one, and none is kept in a URL. A header whose value isn't there yet, as before signing in, is left out. The headers a `stream` answers come first. Neither goes on to another host a request is redirected to.
-- `"imageSizes"` say how to ask the server of the plugin's pictures for one the size the app shows it at, for a service whose image server makes them, so that the app doesn't fetch every cover as large as it was made, a few megabytes each, to show it 40 pixels across:
-
-  ```json
-  "imageSizes": [
-    { "hosts": ["*.img.example.com"], "query": { "param": "{size}y{size}" } },
-    { "hosts": ["{setting:server}"], "query": { "size": "{size}" } }
-  ]
-  ```
-
-  `hosts` are hosts or `*.domain` of the pictures, which needn't be ones `fetch` reaches, or `{setting:key}`, the host of the server a setting names. `*` isn't one. Each parameter of `query` is set on the picture's URL, over one it has of that name, with `{size}` the pixels across the app shows it at. Without `imageSizes`, a plugin whose service can size its pictures does best to give their URLs at about 600 pixels, the most the app shows one at, rather than as large as they were made.
 - `"process": ["bin/helper-*", "ffmpeg"]` lists the programs `host.spawn` can start, for what JavaScript can't do: a path from the plugin's folder or absolute, or a name looked up on `PATH`. A path only matches a path and a name only a name, and `*` matches within one folder, as in a glob. `["*"]`, or `true`, asks for any program, which the listener is warned about. The listener has to allow it in Settings first, as a program can do anything they can. Programs end when the plugin does, and once allowed, `fetch` can reach this machine too, to talk to them. Ship one binary per platform and pick it with `host.platform` and `host.arch`.
 
 ## Credits

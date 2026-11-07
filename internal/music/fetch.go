@@ -7,7 +7,9 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -27,27 +29,26 @@ const maxFetch = 64 << 20
 // It may answer nil.
 var ImageHeaders func(u *url.URL) map[string]string
 
-// ImageSized, when set, answers the URL to fetch the picture at u with, to
-// show it px pixels across, from an image server that makes it that size,
-// or nil to fetch u as it is.
-var ImageSized func(u *url.URL, px int) *url.URL
-
 // SizedImage returns the URL to fetch the picture at u with to show it px
-// pixels across: u itself, unless its source's image server makes it that
-// size.
+// pixels across: u with its size filled in, where it says it goes with
+// {size}, else u itself.
 func SizedImage(u string, px int) string {
-	if ImageSized == nil || px <= 0 {
+	if px <= 0 {
+		px = placeholderSize
+	}
+	if !strings.Contains(u, "size") {
 		return u
 	}
-	parsed, err := url.Parse(u)
-	if err != nil {
-		return u
-	}
-	if sized := ImageSized(parsed, px); sized != nil {
-		return sized.String()
-	}
-	return u
+	return sizePlaceholder.ReplaceAllLiteralString(u, strconv.Itoa(px))
 }
+
+// placeholderSize is the size a picture whose URL says where its size goes
+// is fetched at where nothing asks for one: the most the app shows one at.
+const placeholderSize = 600
+
+// sizePlaceholder is where a picture's URL says its size goes, in the URL
+// as a source gives it or escaped, as a URL parsed and written again has it.
+var sizePlaceholder = regexp.MustCompile(`\{size\}|%7[Bb]size%7[Dd]`)
 
 // Fetch returns what's at url, of the web or a file://, such as a cover.
 func Fetch(u string) ([]byte, error) {

@@ -69,3 +69,24 @@ func must[T any](v T, err error) T {
 	}
 	return v
 }
+
+// A picture whose URL says where its size goes, with {size}, as a source
+// gives it or escaped, is asked for the size it shows; one shown at no size
+// in particular is asked for at the most the app shows one at, and one
+// without it as it is.
+func TestSizedImageFillsItsPlaceholder(t *testing.T) {
+	for _, c := range []struct {
+		in   string
+		px   int
+		want string
+	}{
+		{"https://img.example.com/a.jpg?param={size}y{size}", 96, "https://img.example.com/a.jpg?param=96y96"},
+		{"https://img.example.com/%7Bsize%7D/a.jpg", 240, "https://img.example.com/240/a.jpg"},
+		{"https://img.example.com/a.jpg?w={size}", 0, "https://img.example.com/a.jpg?w=600"},
+		{"https://img.example.com/a.jpg?size=big", 96, "https://img.example.com/a.jpg?size=big"},
+	} {
+		if got := SizedImage(c.in, c.px); got != c.want {
+			t.Errorf("SizedImage(%q, %d) = %q, want %q", c.in, c.px, got, c.want)
+		}
+	}
+}

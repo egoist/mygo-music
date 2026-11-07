@@ -131,7 +131,6 @@ type Manifest struct {
 	MinAppVersion  string           `json:"minAppVersion,omitempty"`
 	Permissions    Permissions      `json:"permissions"`
 	RequestHeaders []RequestHeaders `json:"requestHeaders,omitempty"`
-	ImageSizes     []ImageSize      `json:"imageSizes,omitempty"`
 }
 
 // appVersion is the app's version, which the app sets. With none, as when
@@ -209,9 +208,6 @@ func Load(dir, dataDir string) (*Plugin, error) {
 		}
 	}
 	if err := checkRequestHeaders(&m); err != nil {
-		return nil, fmt.Errorf("%s: %w", dir, err)
-	}
-	if err := checkImageSizes(&m); err != nil {
 		return nil, fmt.Errorf("%s: %w", dir, err)
 	}
 	source, err := os.ReadFile(filepath.Join(dir, m.Main))
