@@ -294,7 +294,7 @@ func (a *app) playlistHeader(c *ui.Context, pl *music.Playlist) {
 			ui.Row(c).Gap(10).Margin(10, 0, 0, 0).Children(func() {
 				a.playButtons(c, pl.Tracks)
 				if a.savable(pl) {
-					icon, label := iconPlus, T("Save")
+					icon, label := iconPlus, TC("Save", "library")
 					if a.isSaved(pl) {
 						icon, label = iconCheck, T("Saved")
 					}

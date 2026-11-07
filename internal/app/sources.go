@@ -13,6 +13,9 @@ import (
 // T returns text in the listener's language; see package i18n.
 func T(text string) string { return i18n.T(text) }
 
+// TC is T of a text that reads differently by what it's about.
+func TC(text, context string) string { return i18n.TC(text, context) }
+
 // Tf is T of a format, formatted.
 func Tf(format string, args ...any) string { return i18n.Tf(format, args...) }
 
