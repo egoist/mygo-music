@@ -78,7 +78,7 @@ func (a *app) typedSourceSetting(c *ui.Context, lib *library, st music.Setting, 
 				}
 				names = append([]string{chosen}, names...)
 			}
-			if ui.Select(c.Key("value"), &chosen, names).Label(st.Label).Disabled(draft.saving).Changed() {
+			if ui.Select(c.Key("value"), &chosen, names).AlignSelf(ui.Start).MaxWidthPercent(100).Label(st.Label).Disabled(draft.saving).Changed() {
 				for _, option := range st.Options {
 					if chosen == option.Label {
 						draft.value = option.Value
@@ -89,7 +89,7 @@ func (a *app) typedSourceSetting(c *ui.Context, lib *library, st music.Setting, 
 			}
 		case "password":
 			ui.Text(c, st.Label).FontSize(12.5).FontWeight(500)
-			ui.TextInput(c.Key("value"), &draft.value).Label(st.Label).FontSize(13).Password().Disabled(draft.saving)
+			ui.TextInput(c.Key("value"), &draft.value).AlignSelf(ui.Start).Width(320).MaxWidthPercent(100).Label(st.Label).FontSize(13).Password().Disabled(draft.saving)
 		}
 		if changed {
 			a.keepTypedSetting(lib, st.Key, draft)

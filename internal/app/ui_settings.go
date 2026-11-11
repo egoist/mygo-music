@@ -753,7 +753,7 @@ func (a *app) sourceSetting(c *ui.Context, lib *library, st music.Setting, p pal
 	}
 	ui.Column(c).Gap(4).Children(func() {
 		ui.Text(c, st.Label).FontSize(12.5).FontWeight(500)
-		in := ui.TextInput(c.Key("value"), text).Label(st.Label).FontSize(13)
+		in := ui.TextInput(c.Key("value"), text).AlignSelf(ui.Start).Width(320).MaxWidthPercent(100).Label(st.Label).FontSize(13)
 		if in.Submitted() || !in.Focused() && *text != a.pendingSetting(lib, st.Key) {
 			a.keepSetting(lib, st.Key, *text)
 		}
