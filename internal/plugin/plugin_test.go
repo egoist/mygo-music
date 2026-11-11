@@ -659,11 +659,11 @@ func TestMinAppVersion(t *testing.T) {
 // over; what it didn't translate stays in English.
 func TestPluginLocales(t *testing.T) {
 	defer i18n.SetLanguage(i18n.Language())
-	dir, data := write(t, `{"id":"x","name":"Tube","settings":[{"key":"k","label":"Folder","help":"Where it is"}],
+	dir, data := write(t, `{"id":"x","name":"Tube","settings":[{"key":"k","label":"Folder","help":"Where it is","type":"select","options":[{"value":"machine-value","label":"Automatic"}]}],
 "navigation":[{"title":"Charts","page":"charts"},{"title":"New","page":"new"}]}`, `
 export function suggest() { return [host.language(), host.t("Charts"), host.t("Nothing")]; }`)
 	os.MkdirAll(filepath.Join(dir, "locales"), 0o700)
-	os.WriteFile(filepath.Join(dir, "locales", "zh-CN.json"), []byte(`{"Tube":"管","Folder":"文件夹","Charts":"排行榜"}`), 0o600)
+	os.WriteFile(filepath.Join(dir, "locales", "zh-CN.json"), []byte(`{"Tube":"管","Folder":"文件夹","Charts":"排行榜","Automatic":"自动"}`), 0o600)
 	p, err := Load(dir, data)
 	if err != nil {
 		t.Fatal(err)
@@ -677,14 +677,16 @@ export function suggest() { return [host.language(), host.t("Charts"), host.t("N
 	i18n.SetLanguage(i18n.Chinese)
 	info := p.Info()
 	if info.Name != "管" || info.Settings[0].Label != "文件夹" || info.Settings[0].Help != "Where it is" ||
-		info.Navigation[0].Title != "排行榜" || info.Navigation[1].Title != "New" {
+		info.Navigation[0].Title != "排行榜" || info.Navigation[1].Title != "New" ||
+		info.Settings[0].Options[0].Label != "自动" || info.Settings[0].Options[0].Value != "machine-value" {
 		t.Errorf("in Chinese: %+v", info)
 	}
 	if got, err := p.Suggest(""); err != nil || strings.Join(got, ",") != "zh-CN,排行榜,Nothing" {
 		t.Errorf("in Chinese: %v, %v", got, err)
 	}
 	i18n.SetLanguage(i18n.English)
-	if p.Info().Name != "Tube" || p.manifest.Navigation[0].Title != "Charts" {
+	if p.Info().Name != "Tube" || p.manifest.Navigation[0].Title != "Charts" ||
+		p.Info().Settings[0].Options[0].Label != "Automatic" || p.manifest.Settings[0].Options[0].Label != "Automatic" {
 		t.Error("translating changed what plugin.json says")
 	}
 }

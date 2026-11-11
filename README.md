@@ -119,6 +119,35 @@ Of the `playlists`, those with `mine` are the listener's own, listed under My Pl
 
 `minAppVersion` is the oldest version of MyGo Music the plugin works with. An older one won't install it, and says to update first. Versions before 0.1.8 don't read it.
 
+### Setting controls
+
+Settings can declare an optional `type` to use a native control. Existing settings with only `key`, `label`, `help` and `link` keep their text fields and save on Enter or when focus leaves the field.
+
+```json
+{
+  "settings": [
+    { "key": "password", "label": "Password", "type": "password" },
+    { "key": "history", "label": "Save listening history", "type": "boolean" },
+    {
+      "key": "authMode", "label": "Sign-in method", "type": "select",
+      "options": [
+        { "value": "", "label": "Automatic (token)" },
+        { "value": "token", "label": "Token" },
+        { "value": "legacy", "label": "Legacy password" }
+      ]
+    }
+  ]
+}
+```
+
+- Missing `type`, `text`, unknown types and invalid select options use the existing text editor.
+- `password` masks the input and its accessibility value. It requires **Save changes**; Enter or blur does not save partial credentials. Storage remains plaintext JSON.
+- `boolean` uses a switch and saves the strings `"true"` or `"false"`. An unset value appears off without writing a default. Other existing string values retain a text editor.
+- `select` displays option labels but saves only their string values. Blank values are allowed. Unlisted saved values stay visible and unchanged until a declared choice is selected. Empty labels, duplicate labels or duplicate values fall back to text.
+- Switch/select changes save automatically; pending writes disable the control. Failed saves offer retry or restoration of the previous value. UI saves for each source run in initiation order.
+
+`host.setting(key)` and `setSetting({key, value})` still use strings; opening settings does not migrate or write values. Older hosts ignore `type` and `options` and render all fields as text, so plugin help must still explain text entry.
+
 ### Translating a plugin
 
 Put the translations in `locales/<language>.json` next to `plugin.json`: `locales/zh-CN.json` for Simplified Chinese, the language the app speaks besides English. Each one maps the English text to the translation:
@@ -127,7 +156,7 @@ Put the translations in `locales/<language>.json` next to `plugin.json`: `locale
 { "Example": "示例", "API Key": "API 密钥", "From your account page": "在你的账号页面获取", "Charts": "排行榜" }
 ```
 
-The app translates the plugin's `name`, its settings' `label` and `help` and its `navigation` titles with them. For what the plugin says itself, such as a page's titles or an error's message, `host.t(text)` answers the translation, or `text` when there's none, and `host.language()` the listener's language, `en` or `zh-CN`. Both follow the listener as they change it, and the page they're on loads again.
+The app translates the plugin's `name`, its settings' `label` and `help`, select option labels and its `navigation` titles with them. Option values are never translated. For what the plugin says itself, such as a page's titles or an error's message, `host.t(text)` answers the translation, or `text` when there's none, and `host.language()` the listener's language, `en` or `zh-CN`. Both follow the listener as they change it, and the page they're on loads again.
 
 With `"playback": "stream"`, the app plays what `stream` answers. With `"playback": "remote"`, the plugin makes the sound itself, or has another program do so, and the app calls the `remote` functions and polls `remoteState`.
 

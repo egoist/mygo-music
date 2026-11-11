@@ -314,6 +314,18 @@ type Setting struct {
 	Help  string `json:"help,omitempty"`
 	// Link is where to get the value.
 	Link string `json:"link,omitempty"`
+	// Type is text (also the default), password, boolean or select. Unknown
+	// types remain editable as text, so older and newer manifests can coexist.
+	// Values are still strings: boolean writes "true"/"false"; select writes
+	// an option's Value. No defaults or migrations are applied to storage.
+	Type    string          `json:"type,omitempty"`
+	Options []SettingOption `json:"options,omitempty"`
+}
+
+// SettingOption separates a select's persisted value from its translated label.
+type SettingOption struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
 }
 
 // Info is how a source introduces itself.
