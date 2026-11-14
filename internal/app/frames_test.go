@@ -219,3 +219,28 @@ func TestNowPlayingRadioFrames(t *testing.T) {
 		}
 	}
 }
+
+// With MM_FRAMES set, saves Now Playing in each retro player style, a third
+// of the way through a song, playing and paused.
+func TestRetroPlayerFrames(t *testing.T) {
+	dir := framesDir(t)
+	for _, style := range playerStyles[1:] {
+		for _, playing := range []bool{true, false} {
+			a := newTestApp()
+			a.settings.PlayerStyle = style.id
+			a.pl.Cue(framesTracks(a))
+			a.pl.SetLyrics(nil)
+			a.pl.Seek(60 * time.Second)
+			name := "retro-" + style.id + "-paused.png"
+			if playing {
+				a.pl.Hold(60 * time.Second)
+				name = "retro-" + style.id + ".png"
+			}
+			a.nowPlaying, a.npPane = true, paneQueue
+			tt := ui.NewTester(a.view, 1180, 780)
+			tt.SetDark(true)
+			settled(tt)
+			saveFrame(t, dir, name, tt.Image())
+		}
+	}
+}

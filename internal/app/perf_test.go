@@ -117,3 +117,23 @@ func TestBackdropFadeEnds(t *testing.T) {
 		t.Error("the last song's backdrop still fades after the fade")
 	}
 }
+
+// A retro player paused, its record or reels still and its tonearm at
+// rest, asks for no frames.
+func TestRetroPlayerPausedFrameBudget(t *testing.T) {
+	for _, style := range playerStyles[1:] {
+		a := newTestApp()
+		a.settings.PlayerStyle = style.id
+		a.pl.Cue([]music.Track{song("7", "宝船", "DOUDOU")})
+		a.pl.Seek(12 * time.Second) // cued, not playing
+		a.nowPlaying, a.npPane = true, paneQueue
+		tt := ui.NewTester(a.view, 1200, 800)
+		settled(tt)
+		tt.Advance(2 * time.Second)
+		tt.Frame()
+		tt.Advance(time.Second)
+		if tt.FramePending() {
+			t.Errorf("%s paused: asks for frames", style.id)
+		}
+	}
+}

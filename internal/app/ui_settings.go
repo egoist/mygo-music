@@ -354,6 +354,21 @@ func (a *app) settingsSections(c *ui.Context, p palette) []settingsSection {
 				a.changed()
 			}
 		})
+		row(T("Now Playing Style"), T("Show the song playing as its cover, or as a record or a cassette turning as it plays"), func() {
+			labels := make([]string, len(playerStyles))
+			at := 0
+			for i, ps := range playerStyles {
+				labels[i] = ps.label
+				if ps.id == s.PlayerStyle {
+					at = i
+				}
+			}
+			if i, ok := choice(c, "player-style", T("Now Playing Style"), labels, at); ok {
+				s.PlayerStyle = playerStyles[i].id
+				a.changed()
+				go retroBitmaps() // rendered before Now Playing shows them
+			}
+		})
 		// Only on macOS: elsewhere the icon is always in the notification
 		// area.
 		if runtime.GOOS == "darwin" {
